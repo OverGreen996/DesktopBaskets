@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.4.3"
+  #define AppVersion "0.4.4"
 #endif
 #ifndef PayloadDir
   #define PayloadDir "..\build\stage"
@@ -94,17 +94,17 @@ Source: "{#PayloadDir}\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignorev
 Source: "{#PayloadDir}\Newtonsoft.Json-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Code]
-function CheckRunning: Boolean;
+function CheckRunning(IsSilent: Boolean): Boolean;
 begin
 #ifdef BuildValidation
-  Result := True;
+  Result := not CheckForMutexes(ExpandConstant('Local\DesktopBaskets_Validation_{username}'));
 #else
   Result := not CheckForMutexes(ExpandConstant('Local\DesktopBaskets_{username}'));
+#endif
   if not Result then begin
     Log(CustomMessage('CloseFirst'));
-    if not WizardSilent then MsgBox(CustomMessage('CloseFirst'), mbInformation, MB_OK);
+    if not IsSilent then MsgBox(CustomMessage('CloseFirst'), mbInformation, MB_OK);
   end;
-#endif
 end;
 
 function InitializeSetup: Boolean;
@@ -116,10 +116,10 @@ begin
     if not WizardSilent then MsgBox(CustomMessage('NeedFramework'), mbError, MB_OK);
     exit;
   end;
-  Result := CheckRunning;
+  Result := CheckRunning(WizardSilent);
 end;
 
 function InitializeUninstall: Boolean;
 begin
-  Result := CheckRunning;
+  Result := CheckRunning(UninstallSilent);
 end;

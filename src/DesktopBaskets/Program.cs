@@ -85,6 +85,9 @@ internal static class Verification
     }
     public static object SelfTest(string testWork)
     {
+        // Reference-geometry unit tests use a known native grid fixture.
+        // Explorer spacing is machine-specific and may differ on a hosted runner.
+        Grid.Configure(new Size(76,99));
         int count=0;
         void Check(bool condition,string name){Require(condition,name);count++;}
         var icons=new[]{new LayoutIcon("hit",new Point(20,20)),new LayoutIcon("keep",new Point(340,20))};

@@ -1,5 +1,5 @@
 {
-  "Version": "0.4.3",
+  "Version": "0.4.4",
   "chrome-test": {
     "Passed": true,
     "NoSeparateTitleStrip": true,
@@ -57,13 +57,14 @@
   },
   "Installer": {
     "Passed": true,
-    "Version": "0.4.3",
+    "Version": "0.4.4",
     "ProductionSetupRefusesRunningApp": true,
     "PerUserInstallation": true,
     "PayloadFilesHashMatch": true,
     "InstalledFileCount": 9,
     "InstalledSelfTestAssertions": 486,
     "ReinstallationWorks": true,
+    "UninstallRefusesRunningValidationApp": true,
     "UninstallRemovesRegisteredPayload": true,
     "UninstallRemovesRegistration": true,
     "PersonalStateUnchanged": true,
@@ -93,5 +94,6 @@
       "WorkingSetTrimmedOnce": true
     },
     "RetestedOn043": false
-  }
+  },
+  "VirtualizationLastTestedVersion": "0.4.3"
 }
