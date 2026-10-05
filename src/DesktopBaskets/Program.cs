@@ -14,7 +14,7 @@ internal static class Program
         try
         {
             try{using var desktop=new DesktopShell();Grid.Configure(desktop.Spacing);}catch{ /* default native-sized grid remains available for diagnostics */ }
-            if(args.Contains("--self-test")){Write(report,Verification.SelfTest());return 0;}
+            if(args.Contains("--self-test")){Write(report,Verification.SelfTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--diagnose")){Write(report,Verification.Diagnose());return 0;}
             if(args.Contains("--repair-desktop")){using var desktop=new DesktopShell();desktop.RepairInput();Write(report,new{Passed=desktop.Interactive});return 0;}
             if(args.Contains("--restore-backup")){Write(report,Verification.RestoreBackup(Value(args,"--restore-backup")!));return 0;}
@@ -83,7 +83,7 @@ internal static class Verification
         }
         finally{foreach(var i in icons)i.Dispose();}
     }
-    public static object SelfTest()
+    public static object SelfTest(string testWork)
     {
         int count=0;
         void Check(bool condition,string name){Require(condition,name);count++;}
@@ -120,7 +120,7 @@ internal static class Verification
         Check(magnetic.Left==324&&magnetic.Top==0,"Baskets magnetically attach and align edges");
         var distant=new Rectangle(400,60,324,282);
         Check(Magnet.Move(distant,new[]{new Rectangle(0,0,324,282)})==distant,"Magnet leaves distant baskets freely placed");
-        string root=System.IO.Path.Combine(AppContext.BaseDirectory,"tests",Guid.NewGuid().ToString("N"));
+        string root=System.IO.Path.Combine(testWork,"self-test",Guid.NewGuid().ToString("N"));
         string desktop=System.IO.Path.Combine(root,"Desktop");Directory.CreateDirectory(desktop);
         string publicDesktop=System.IO.Path.Combine(root,"Public Desktop");Directory.CreateDirectory(publicDesktop);
         var store=new Store(System.IO.Path.Combine(root,"Data"),desktop,publicDesktop);var a=new Basket{Name="遊戲"};var b=new Basket{Name="雜項"};store.State.Baskets.AddRange(new[]{a,b});store.Save();

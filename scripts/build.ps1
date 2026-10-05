@@ -9,6 +9,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Application build failed.' }
 $stage = Join-Path $projectRoot 'build/stage'
 $dist = Join-Path $projectRoot 'dist'
 $release = Join-Path $projectRoot 'src/DesktopBaskets/bin/Release/net48'
+$resolvedStage = [IO.Path]::GetFullPath($stage)
+$buildRoot = [IO.Path]::GetFullPath((Join-Path $projectRoot 'build')).TrimEnd('\')+'\'
+if (!$resolvedStage.StartsWith($buildRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Staging directory is outside the project build directory.' }
+if (Test-Path -LiteralPath $resolvedStage) { Remove-Item -LiteralPath $resolvedStage -Recurse -Force }
 New-Item -ItemType Directory -Path $stage,$dist -Force | Out-Null
 foreach ($file in @('DesktopBaskets.exe','DesktopBaskets.exe.config','Newtonsoft.Json.dll')) { Copy-Item -LiteralPath (Join-Path $release $file) -Destination $stage -Force }
 Copy-Item -LiteralPath (Join-Path $release 'Assets') -Destination $stage -Recurse -Force
