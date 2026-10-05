@@ -1,0 +1,30 @@
+name: Windows build
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build portable app
+        shell: pwsh
+        run: ./scripts/build.ps1
+      - name: Run layout and path-preservation checks
+        shell: pwsh
+        run: |
+          $report = Join-Path $env:RUNNER_TEMP 'self-test.json'
+          $process = Start-Process -FilePath './build/stage/DesktopBaskets.exe' -ArgumentList @('--self-test','--report',$report) -Wait -PassThru -WindowStyle Hidden
+          if ($process.ExitCode -ne 0 -or !(Get-Content $report -Raw | ConvertFrom-Json).Passed) { throw 'Self-test failed.' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DesktopBaskets-Windows-x64
+          path: dist/*.zip

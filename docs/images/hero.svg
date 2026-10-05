@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="350" viewBox="0 0 1200 350" role="img" aria-labelledby="title desc">
+  <title id="title">Desktop Baskets — 讓桌面有秩序，讓檔案留在原位</title>
+  <desc id="desc">深色背景、細切角邊框與黃色旗角，呈現 Windows 原生桌面分類工具的視覺識別。</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#24292c"/><stop offset="1" stop-color="#111516"/></linearGradient>
+    <pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".6" fill="#555e60" opacity=".35"/></pattern>
+  </defs>
+  <rect width="1200" height="350" fill="url(#bg)"/>
+  <rect x="18" y="18" width="1164" height="314" fill="url(#dots)"/>
+  <g stroke="#6e7779" fill="none">
+    <path d="M24 65 64 24h320m18 0h440m18 0h306M24 80v89m0 21v120l17 16h308m20 0h605m21 0h148l33-33v-66m0-18V97"/>
+    <path d="M46 118v170l17 16h627m19 0h405l40-39V135" opacity=".45"/>
+    <path d="M78 280h16m-8-8v16M1120 280h16m-8-8v16M1104 108h16m-8-8v16"/>
+  </g>
+  <path d="M1134 24h38l8 8v79l-46-46z" fill="#fffa00"/>
+  <g fill="#15191a"><path d="M1147 37h8v8h-8zM1158 37h8v8h-8zM1147 48h8v8h-8zM1158 48h8v8h-8z"/></g>
+  <path d="M24 112v52" stroke="#fffa00" stroke-width="4"/>
+  <g font-family="Segoe UI,Microsoft JhengHei UI,Arial,sans-serif">
+    <text x="64" y="65" fill="#b5c0c4" font-size="13" letter-spacing="4">LOCAL / DESKTOP ORGANIZER</text>
+    <text x="60" y="151" fill="#edf0f2" font-size="68" font-weight="800" letter-spacing="-2">DESKTOP BASKETS</text>
+    <text x="64" y="201" fill="#edf0f2" font-size="26" font-weight="600">讓桌面有秩序，讓檔案留在原位。</text>
+    <text x="65" y="239" fill="#b5c0c4" font-size="16">暗色玻璃整理框 · 自由分類 · 格數縮放 · 磁吸對齊</text>
+  </g>
+  <g font-family="Consolas,monospace" font-size="12" letter-spacing="1.2">
+    <text x="64" y="292" fill="#fffa00">PATH: ORIGINAL</text>
+    <text x="256" y="292" fill="#b5c0c4">NATIVE WINDOWS / X64</text>
+    <text x="990" y="292" fill="#b5c0c4">VER 0.4.3</text>
+  </g>
+</svg>

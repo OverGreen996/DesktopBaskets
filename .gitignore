@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.vs/
+build/
+dist/
+*.user
+*.suo
+*.pdb
+state.json*
+tests/
+*.log
