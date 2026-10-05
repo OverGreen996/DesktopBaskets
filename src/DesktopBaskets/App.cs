@@ -15,10 +15,11 @@ internal sealed class App : ApplicationContext
     public const int StandbyAfterSeconds=30;
     DesktopEvents? events;
     readonly List<FileSystemWatcher> watchers=new();
-    public int DesktopEventsSeen => events?.Seen??0;
-    public int DesktopEventsRelevant => events?.Relevant??0;
+    int completedEventsSeen,completedEventsRelevant;
+    public int DesktopEventsSeen => completedEventsSeen+(events?.Seen??0);
+    public int DesktopEventsRelevant => completedEventsRelevant+(events?.Relevant??0);
     public int VisualPaintCount=>windows.Values.Sum(w=>w.ChromePaintCount+w.GlassPaintCount+w.Viewport.PaintCount);
-    bool applying,quitting;
+    bool applying,quitting,desktopRefreshed;
     bool hideVerificationWindows;
     internal void HideVerificationWindows(){hideVerificationWindows=true;foreach(var w in windows.Values)w.Hide();Manager.Hide();}
     public App(Store store,bool smoke=false)
@@ -210,20 +211,20 @@ internal sealed class App : ApplicationContext
         for(int i=0;i<baskets.Count;i++)for(int j=i+1;j<baskets.Count;j++)
             if(baskets[i].ScreenBounds.IntersectsWith(baskets[j].ScreenBounds))throw new InvalidOperationException("分類籃位置重疊，請移到其他位置。桌面圖示尚未改動。");
     }
-    void ApplyLayout()
+    void ApplyLayout(bool preserveManagedPositions=false)
     {
         applying=true;debounce.Stop();
         foreach(var window in windows.Values)window.Hide();
         try
         {
-            ValidateGeometry();layout.Apply(Store.State.Baskets.Select(b=>b.ScreenBounds).ToArray());
+            ValidateGeometry();layout.Apply(Store.State.Baskets.Select(b=>b.ScreenBounds).ToArray(),preserveManagedPositions);
             foreach(var id in windows.Keys.Where(k=>!Store.State.Baskets.Any(b=>b.Id==k)).ToArray()){windows[id].Dispose();windows.Remove(id);}
             foreach(var b in Store.State.Baskets)
             {
                 if(!windows.TryGetValue(b.Id,out var window)||window.IsDisposed){window=new BasketWindow(this,b);windows[b.Id]=window;}
                 window.Attach(layout.Shell);if(!hideVerificationWindows)window.Show();
             }
-            events?.Dispose();events=new DesktopEvents(layout.Shell,ScheduleCheck);
+            if(events!=null){completedEventsSeen+=events.Seen;completedEventsRelevant+=events.Relevant;events.Dispose();}events=new DesktopEvents(layout.Shell,ScheduleCheck);
             if(watchers.Count==0)WatchDesktop();
             Manager.SetStatus("原始路徑不變  /  格數縮放 · 磁吸對齊 · 框外桌面可正常操作");
         }
@@ -235,9 +236,10 @@ internal sealed class App : ApplicationContext
         try {if(Store.State.Enabled)ApplyLayout();else layout.Restore();Store.Save();}
         catch(Exception ex){foreach(var w in windows.Values)w.Hide();Manager.SetStatus(ex.Message,true);}
     }
-    void ScheduleCheck()
+    void ScheduleCheck(bool refreshed=false)
     {
         if(applying||quitting||!Store.State.Enabled)return;
+        desktopRefreshed|=refreshed;
         debounce.Stop();debounce.Start();
     }
     void WatchDesktop()
@@ -270,19 +272,20 @@ internal sealed class App : ApplicationContext
         {
             if(!layout.Shell.IconsVisible){foreach(var w in windows.Values)w.Hide();return;}
             var icons=layout.Shell.ReadIcons();
-            bool blocked;
+            bool blocked;bool refresh=desktopRefreshed;desktopRefreshed=false;
             try
             {
                 var rects=Store.State.Baskets.Select(b=>layout.Shell.ToView(b.ScreenBounds)).ToArray();
                 var spacing=layout.Shell.Spacing;
                 var assigned=new HashSet<string>(Store.State.Baskets.SelectMany(b=>b.Entries).Select(e=>e.Path),StringComparer.OrdinalIgnoreCase);
-                blocked=icons.Any(i=>assigned.Contains(i.Key)
+                blocked=(refresh&&Store.State.Icons.Any(b=>icons.Any(i=>i.Key==b.Key&&i.Position!=new Point(b.LastX,b.LastY))))||icons.Any(i=>assigned.Contains(i.Key)
                     ?Screen.AllScreens.Any(s=>layout.Shell.ToView(s.Bounds).IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing)))
                     :rects.Any(r=>r.IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing))))
                     ||Store.State.Icons.Any(b=>b.Hidden&&!assigned.Contains(b.Key));
+                if(!blocked){layout.Shell.CleanAssignedSelection(icons,assigned);if(!refresh)layout.RememberUserPositions(icons);}
             }
             finally {foreach(var i in icons)i.Dispose();}
-            if(blocked)ApplyLayout();else if(!hideVerificationWindows)foreach(var w in windows.Values)w.Show();
+            if(blocked)ApplyLayout(refresh);else if(!hideVerificationWindows)foreach(var w in windows.Values)w.Show();
         }
         catch(Exception ex){foreach(var w in windows.Values)w.Hide();Manager.SetStatus("桌面整理已暫停："+ex.Message,true);}
     }

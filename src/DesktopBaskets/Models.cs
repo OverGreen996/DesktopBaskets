@@ -196,6 +196,32 @@ public record LayoutIcon(string Key, Point Position);
 public static class LayoutPlanner
 {
     public static Rectangle Footprint(Point p, Size spacing) => new(p.X - 10, p.Y - 10, spacing.Width + 20, spacing.Height + 20);
+    // Explorer spacing already includes its label area. Adjacent native cells may
+    // share our extra basket-clearance gutter without overlapping each other.
+    public static Rectangle Cell(Point p,Size spacing)=>new(p,spacing);
+    public static Dictionary<string,Point> FillVacancies(IReadOnlyList<LayoutIcon> icons,IEnumerable<Point> vacancies,
+        IReadOnlyList<Rectangle> baskets,IReadOnlyList<Rectangle> workAreas,Size spacing)
+    {
+        var positions=icons.ToDictionary(i=>i.Key,i=>i.Position,StringComparer.OrdinalIgnoreCase);
+        var result=new Dictionary<string,Point>(StringComparer.OrdinalIgnoreCase);
+        bool Before(Point a,Point b)=>a.X<b.X||(a.X==b.X&&a.Y<b.Y);
+        foreach(var area in workAreas)
+        {
+            var holes=new HashSet<Point>(vacancies.Where(p=>area.Contains(Cell(p,spacing))));
+            while(holes.Count>0)
+            {
+                var hole=holes.OrderBy(p=>p.X).ThenBy(p=>p.Y).First();holes.Remove(hole);
+                var cell=Cell(hole,spacing);
+                if(baskets.Any(b=>b.IntersectsWith(Footprint(hole,spacing)))||positions.Values.Any(p=>cell.IntersectsWith(Cell(p,spacing))))continue;
+                var next=positions.Where(i=>area.Contains(Cell(i.Value,spacing))&&Before(hole,i.Value)
+                    &&!baskets.Any(b=>b.IntersectsWith(Footprint(i.Value,spacing))))
+                    .OrderBy(i=>i.Value.X).ThenBy(i=>i.Value.Y).FirstOrDefault();
+                if(next.Key==null)continue;
+                var freed=next.Value;positions[next.Key]=hole;result[next.Key]=hole;holes.Add(freed);
+            }
+        }
+        return result;
+    }
     public static Dictionary<string, Point> Plan(IReadOnlyList<LayoutIcon> icons, IReadOnlyList<Rectangle> baskets,
         IReadOnlyList<Rectangle> workAreas, Size spacing,HashSet<string>? forceMove=null)
     {

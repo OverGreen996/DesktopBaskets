@@ -12,6 +12,8 @@ internal static class Native
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern bool EnableWindow(IntPtr hwnd,bool enable);
+    [DllImport("user32.dll")] public static extern bool InvalidateRect(IntPtr hwnd,IntPtr rect,bool erase);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hwnd,uint message,IntPtr wParam,IntPtr lParam);
     [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd,uint flags);
     [DllImport("user32.dll",SetLastError=true)] public static extern bool SetLayeredWindowAttributes(IntPtr hwnd,uint key,byte alpha,uint flags);
     [DllImport("user32.dll")] public static extern bool GetLayeredWindowAttributes(IntPtr hwnd,out uint key,out byte alpha,out uint flags);
@@ -53,6 +55,8 @@ internal interface IShellViewNative
 {
     [PreserveSig] int GetWindow(out IntPtr hwnd);
     void ContextSensitiveHelp();
+    void TranslateAccelerator(); void EnableModeless(); void UIActivate();
+    [PreserveSig] int Refresh();
 }
 [ComImport, Guid("1af3a467-214f-4298-908e-06b03e0b39f9"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 internal interface IFolderView2
@@ -66,7 +70,7 @@ internal interface IFolderView2
     [PreserveSig] int GetSpacing(ref Native.POINT point);
     [PreserveSig] int GetDefaultSpacing(out Native.POINT point);
     [PreserveSig] int GetAutoArrange();
-    void SelectItem();
+    [PreserveSig] int SelectItem(int index,uint flags);
     [PreserveSig] int SelectAndPositionItems(uint count, [MarshalAs(UnmanagedType.LPArray, SizeParamIndex=0)] IntPtr[] pidls,
         [MarshalAs(UnmanagedType.LPArray, SizeParamIndex=0)] Native.POINT[] points, uint flags);
     void SetGroupBy(); void GetGroupBy(); void SetViewProperty(); void GetViewProperty();
@@ -161,12 +165,28 @@ internal sealed class DesktopShell : IDisposable
     public void SetAutoArrange(bool enabled) => Native.Check(view.SetCurrentFolderFlags(1, enabled ? 1u : 0u));
     public void SetManualPositions() => Native.Check(view.SetCurrentFolderFlags(5,0));
     public void SetLayoutFlags(bool auto,bool snap) => Native.Check(view.SetCurrentFolderFlags(5,(auto?1u:0u)|(snap?4u:0u)));
+    public void RefreshView()=>Native.Check(((IShellViewNative)shellView).Refresh());
+    public bool IsSelected(int index)=>(Native.SendMessage(List,0x102C,new IntPtr(index),new IntPtr(2)).ToInt64()&2)!=0; // LVM_GETITEMSTATE / LVIS_SELECTED
+    internal void SelectForVerification(int index)=>Native.Check(view.SelectItem(index,0x40000001));
+    public void CleanAssignedSelection(IReadOnlyList<ShellIcon> icons,HashSet<string> assigned)
+    {
+        bool hasHidden=false;
+        for(int i=0;i<icons.Count;i++)if(assigned.Contains(icons[i].Key))
+        {
+            hasHidden=true;
+            if(IsSelected(i))Native.Check(view.SelectItem(i,0x40000000)); // deselect, do not take desktop focus
+        }
+        // One repaint after an Explorer event removes stale drag/selection pixels.
+        // This does not refresh the folder, run a timer, or change file attributes.
+        if(hasHidden)Native.InvalidateRect(List,IntPtr.Zero,true);
+    }
     public void Position(IEnumerable<ShellIcon> icons, IReadOnlyDictionary<string,Point> positions)
     {
-        var selected=icons.Where(i=>positions.ContainsKey(i.Key)).ToArray();
+        var selected=icons.Where(i=>positions.TryGetValue(i.Key,out var target)&&target!=i.Position).ToArray();
         if(selected.Length==0) return;
         Native.Check(view.SelectAndPositionItems((uint)selected.Length, selected.Select(i=>i.Pidl).ToArray(),
             selected.Select(i=>new Native.POINT(positions[i.Key])).ToArray(),0x80));
+        Native.InvalidateRect(List,IntPtr.Zero,true);
     }
     public Rectangle ToView(Rectangle screen) => new(screen.X-Origin.X,screen.Y-Origin.Y,screen.Width,screen.Height);
     public void Dispose()
@@ -182,7 +202,18 @@ internal sealed class DesktopLayout : IDisposable
     public DesktopShell Shell => shell != null && shell.Alive ? shell : Reconnect();
     public DesktopLayout(Store store) { this.store=store; }
     DesktopShell Reconnect() { shell?.Dispose(); return shell=new DesktopShell(); }
-    public void Apply(IReadOnlyList<Rectangle> baskets)
+    public void RememberUserPositions(IReadOnlyList<ShellIcon> icons)
+    {
+        bool changed=false;
+        foreach(var saved in store.State.Icons.Where(b=>!b.Hidden))
+        {
+            var icon=icons.FirstOrDefault(i=>string.Equals(i.Key,saved.Key,StringComparison.OrdinalIgnoreCase));
+            if(icon!=null&&icon.Position!=new Point(saved.LastX,saved.LastY))
+            {saved.X=saved.LastX=icon.Position.X;saved.Y=saved.LastY=icon.Position.Y;changed=true;}
+        }
+        if(changed)store.Save();
+    }
+    public void Apply(IReadOnlyList<Rectangle> baskets,bool preserveManagedPositions=false)
     {
         var desktop=Shell;
         var icons=desktop.ReadIcons();
@@ -199,11 +230,20 @@ internal sealed class DesktopLayout : IDisposable
             var returning=new HashSet<string>(store.State.Icons.Where(b=>b.Hidden&&!assigned.Contains(b.Key)).Select(b=>b.Key),StringComparer.OrdinalIgnoreCase);
             var visible=icons.Where(i=>!assigned.Contains(i.Key)).Select(i=>
             {
-                var saved=store.State.Icons.FirstOrDefault(b=>b.Key==i.Key&&b.Hidden);
-                return new LayoutIcon(i.Key,saved==null?i.Position:new Point(saved.X,saved.Y));
+                var saved=store.State.Icons.FirstOrDefault(b=>b.Key==i.Key);
+                return new LayoutIcon(i.Key,saved==null?i.Position:saved.Hidden?new Point(saved.X,saved.Y):preserveManagedPositions?new Point(saved.LastX,saved.LastY):i.Position);
             }).ToArray();
             var spacing=desktop.Spacing;
             var plan=LayoutPlanner.Plan(visible,blocked,workAreas,spacing,returning);
+            if(preserveManagedPositions)foreach(var icon in visible)
+                if(!plan.ContainsKey(icon.Key)&&icons.Any(i=>i.Key==icon.Key&&i.Position!=icon.Position))plan[icon.Key]=icon.Position;
+            var vacancies=icons.Where(i=>assigned.Contains(i.Key)).Select(i=>
+            {
+                var saved=store.State.Icons.FirstOrDefault(b=>string.Equals(b.Key,i.Key,StringComparison.OrdinalIgnoreCase)&&b.Hidden);
+                return saved==null?i.Position:new Point(saved.X,saved.Y);
+            }).ToArray();
+            var current=visible.Select(i=>new LayoutIcon(i.Key,plan.TryGetValue(i.Key,out var p)?p:i.Position)).ToArray();
+            foreach(var move in LayoutPlanner.FillVacancies(current,vacancies,blocked,workAreas,spacing))plan[move.Key]=move.Value;
             int hiddenX=Screen.AllScreens.Max(s=>desktop.ToView(s.Bounds).Right)+512;
             int hiddenIndex=0;
             foreach(var icon in icons.Where(i=>assigned.Contains(i.Key)))
@@ -215,7 +255,7 @@ internal sealed class DesktopLayout : IDisposable
                 var backup=store.State.Icons.FirstOrDefault(b=>b.Key==icon.Key);
                 if(backup==null) { backup=new IconBackup{Key=icon.Key,X=icon.Position.X,Y=icon.Position.Y}; store.State.Icons.Add(backup); }
                 // Record a user-adjusted position as the new restore target.
-                else if(icon.Position != new Point(backup.LastX,backup.LastY)) { backup.X=icon.Position.X; backup.Y=icon.Position.Y; }
+                else if(!backup.Hidden&&!preserveManagedPositions&&icon.Position != new Point(backup.LastX,backup.LastY)) { backup.X=icon.Position.X; backup.Y=icon.Position.Y; }
                 backup.LastX=plan[icon.Key].X; backup.LastY=plan[icon.Key].Y;
                 backup.Hidden=assigned.Contains(icon.Key);
             }
@@ -223,6 +263,7 @@ internal sealed class DesktopLayout : IDisposable
             desktop.SetManualPositions();
             try
             {
+                desktop.CleanAssignedSelection(icons,assigned);
                 desktop.Position(icons,plan);
                 var after=desktop.ReadIcons();
                 try
@@ -233,7 +274,7 @@ internal sealed class DesktopLayout : IDisposable
                         throw new InvalidOperationException("Windows 未接受純視覺分類位置，這次分類不會顯示重複圖示。");
                     foreach(var moved in after.Where(i=>plan.ContainsKey(i.Key)))
                     {
-                        if(!assigned.Contains(moved.Key)&&after.Where(other=>!assigned.Contains(other.Key)).Any(other=>other.Key!=moved.Key&&LayoutPlanner.Footprint(moved.Position,spacing).IntersectsWith(LayoutPlanner.Footprint(other.Position,spacing))))
+                        if(!assigned.Contains(moved.Key)&&after.Where(other=>!assigned.Contains(other.Key)).Any(other=>other.Key!=moved.Key&&LayoutPlanner.Cell(moved.Position,spacing).IntersectsWith(LayoutPlanner.Cell(other.Position,spacing))))
                             throw new InvalidOperationException("Windows 調整了圖示位置，造成圖示互相重疊。這次移動已取消。");
                         var saved=store.State.Icons.Single(b=>b.Key==moved.Key);saved.LastX=moved.Position.X;saved.LastY=moved.Position.Y;
                     }

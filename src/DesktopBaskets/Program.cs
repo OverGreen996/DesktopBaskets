@@ -20,6 +20,7 @@ internal static class Program
             if(args.Contains("--restore-backup")){Write(report,Verification.RestoreBackup(Value(args,"--restore-backup")!));return 0;}
             if(args.Contains("--integration-test")){Write(report,Verification.Integration(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--event-test")){Write(report,Verification.EventTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--refresh-test")){Write(report,Verification.RefreshTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--input-test")){Write(report,Verification.InputTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--visual-test")){Write(report,Verification.VisualTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--capture")){Verification.Capture(Value(args,"--capture")!,Value(args,"--work")??AppContext.BaseDirectory);return 0;}
@@ -54,7 +55,7 @@ internal static class Program
     }
 }
 
-internal static class Verification
+internal static partial class Verification
 {
     static void Require(bool value,string message){if(!value)throw new InvalidOperationException(message);}
     public static object Diagnose()
@@ -85,6 +86,7 @@ internal static class Verification
     }
     public static object SelfTest(string testWork)
     {
+        testWork=Path.GetFullPath(testWork);
         // Reference-geometry unit tests use a known native grid fixture.
         // Explorer spacing is machine-specific and may differ on a hosted runner.
         Grid.Configure(new Size(76,99));
@@ -97,6 +99,21 @@ internal static class Verification
         Check(!basket.IntersectsWith(LayoutPlanner.Footprint(plan["hit"],spacing)),"Moved icon must avoid basket");
         bool rejected=false;try{LayoutPlanner.Plan(icons,new[]{area},new[]{area},spacing);}catch(InvalidOperationException){rejected=true;}
         Check(rejected,"Full desktop must reject placement");
+        var nativeSpacing=new Size(76,99);var nativeArea=new Rectangle(0,0,800,600);
+        var chain=new[]{new LayoutIcon("B",new Point(20,119)),new LayoutIcon("C",new Point(20,218)),new LayoutIcon("D",new Point(96,20))};
+        var filled=LayoutPlanner.FillVacancies(chain,new[]{new Point(20,20)},Array.Empty<Rectangle>(),new[]{nativeArea},nativeSpacing);
+        Check(filled["B"]==new Point(20,20)&&filled["C"]==new Point(20,119)&&filled["D"]==new Point(20,218),"Native adjacent cells fill in column order without label-gutter false collisions");
+        var chainAfter=chain.Select(i=>new LayoutIcon(i.Key,filled.TryGetValue(i.Key,out var p)?p:i.Position)).ToArray();
+        Check(LayoutPlanner.FillVacancies(chainAfter,new[]{new Point(20,20)},Array.Empty<Rectangle>(),new[]{nativeArea},nativeSpacing).Count==0,"Repeated refresh does not shuffle filled cells");
+        Check(LayoutPlanner.FillVacancies(chain,new[]{new Point(20,20)},new[]{new Rectangle(0,0,96,99)},new[]{nativeArea},nativeSpacing).Count==0,"Vacancies inside baskets stay reserved");
+        Check(LayoutPlanner.FillVacancies(chain,new[]{new Point(400,400)},Array.Empty<Rectangle>(),new[]{nativeArea},nativeSpacing).Count==0,"Later empty cells do not move icons backwards in order");
+        var partial=LayoutPlanner.FillVacancies(new[]{new LayoutIcon("near",new Point(30,30)),new LayoutIcon("later",new Point(200,20))},new[]{new Point(20,20)},Array.Empty<Rectangle>(),new[]{nativeArea},nativeSpacing);
+        Check(partial.Count==0,"Partially occupied cells are not overwritten");
+        var sameMonitor=LayoutPlanner.FillVacancies(new[]{new LayoutIcon("right",new Point(20,20))},new[]{new Point(-780,20)},Array.Empty<Rectangle>(),new[]{new Rectangle(-800,0,800,600),nativeArea},nativeSpacing);
+        Check(sameMonitor.Count==0,"Filling does not transfer icons to another monitor");
+        var twoHoles=LayoutPlanner.FillVacancies(new[]{new LayoutIcon("C",new Point(20,218)),new LayoutIcon("D",new Point(20,317))},new[]{new Point(20,20),new Point(20,119)},Array.Empty<Rectangle>(),new[]{nativeArea},nativeSpacing);
+        Check(twoHoles["C"]==new Point(20,20)&&twoHoles["D"]==new Point(20,119),"Multiple grouped files compact in stable order");
+        Check(LayoutPlanner.FillVacancies(chain,Array.Empty<Point>(),Array.Empty<Rectangle>(),new[]{nativeArea},nativeSpacing).Count==0,"Intentional gaps without a classified source are preserved");
         var random=new Random(947);
         for(int iteration=0;iteration<150;iteration++)
         {
