@@ -8,6 +8,10 @@ internal sealed class BasketGlassWindow : Form
 {
     readonly App app;
     readonly BasketWindow foreground;
+    IntPtr attachedHandle,attachedHost;
+    Rectangle attachedBounds;
+    int attachedOpacity=-1;
+    public int NativeVisibilityChanges {get;private set;}
     public int PaintCount {get;private set;}
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hwnd,int message,IntPtr wParam,IntPtr lParam);
     public BasketGlassWindow(App app,BasketWindow foreground)
@@ -21,18 +25,29 @@ internal sealed class BasketGlassWindow : Form
     }
     public void Attach(DesktopShell shell)
     {
-        var hwnd=Handle;Native.SetParent(hwnd,shell.Host);
-        if(Native.GetParent(hwnd)!=shell.Host)throw new InvalidOperationException("無法附加桌面玻璃底板。");
-        Native.SetWindowLongPtr(hwnd,-20,new IntPtr(Native.GetWindowLongPtr(hwnd,-20).ToInt64()|0x80000|0x08000000));
+        var hwnd=Handle;
+        bool reattach=attachedHandle!=hwnd||attachedHost!=shell.Host||Native.GetParent(hwnd)!=shell.Host;
+        if(reattach)
+        {
+            Native.SetParent(hwnd,shell.Host);
+            if(Native.GetParent(hwnd)!=shell.Host)throw new InvalidOperationException("無法附加桌面玻璃底板。");
+            Native.SetWindowLongPtr(hwnd,-20,new IntPtr(Native.GetWindowLongPtr(hwnd,-20).ToInt64()|0x80000|0x08000000));
+        }
         var bounds=foreground.Basket.ScreenBounds;var p=new Native.POINT(bounds.Location);Native.ScreenToClient(shell.Host,ref p);
-        if(!Native.SetWindowPos(hwnd,foreground.Handle,p.X,p.Y,bounds.Width,bounds.Height,0x10|0x20))throw new InvalidOperationException("無法設定玻璃底板的位置。");
-        if(!Native.SetLayeredWindowAttributes(hwnd,0,(byte)(foreground.Basket.OpacityPercent*255/100),2))throw new InvalidOperationException("無法設定玻璃底板的透明度。");
-        Invalidate();
+        var clientBounds=new Rectangle(p.X,p.Y,bounds.Width,bounds.Height);
+        if(reattach||attachedBounds!=clientBounds)
+        {
+            if(!Native.SetWindowPos(hwnd,foreground.Handle,p.X,p.Y,bounds.Width,bounds.Height,0x10|(reattach?0x20u:0)))throw new InvalidOperationException("無法設定玻璃底板的位置。");
+            Invalidate();
+        }
+        if(reattach||attachedOpacity!=foreground.Basket.OpacityPercent)
+            if(!Native.SetLayeredWindowAttributes(hwnd,0,(byte)(foreground.Basket.OpacityPercent*255/100),2))throw new InvalidOperationException("無法設定玻璃底板的透明度。");
+        attachedHandle=hwnd;attachedHost=shell.Host;attachedBounds=clientBounds;attachedOpacity=foreground.Basket.OpacityPercent;
     }
     public void ShowBehind()
     {
         if(IsDisposed||!IsHandleCreated)return;
-        Show();Native.SetWindowPos(Handle,foreground.Handle,0,0,0,0,0x1|0x2|0x10);
+        if(!Visible)Show();Native.SetWindowPos(Handle,foreground.Handle,0,0,0,0,0x1|0x2|0x10);
     }
     public static void PaintGlass(Graphics g,Rectangle bounds)
     {
@@ -47,6 +62,7 @@ internal sealed class BasketGlassWindow : Form
     protected override void OnPaint(PaintEventArgs e){PaintCount++;PaintGlass(e.Graphics,ClientRectangle);base.OnPaint(e);}
     protected override void WndProc(ref Message m)
     {
+        if(m.Msg==0x18)NativeVisibilityChanges++;
         if(foreground!=null&&!foreground.IsDisposed&&m.Msg>=0x200&&m.Msg<=0x20E)
         {
             if(m.Msg==0x200&&m.WParam==IntPtr.Zero&&app.IsStandby){m.Result=IntPtr.Zero;return;}

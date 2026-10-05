@@ -7,6 +7,7 @@ internal sealed class App : ApplicationContext
     public ManagerWindow Manager { get; }
     readonly DesktopLayout layout;
     readonly Dictionary<string,BasketWindow> windows=new();
+    internal IReadOnlyCollection<BasketWindow> DesktopWindows=>windows.Values;
     readonly NotifyIcon tray;
     readonly System.Windows.Forms.Timer debounce=new(){Interval=300};
     readonly System.Windows.Forms.Timer idle=new(){Interval=30000};
@@ -242,7 +243,6 @@ internal sealed class App : ApplicationContext
     {
         using var dpi=new Native.PhysicalDpiScope();
         applying=true;debounce.Stop();
-        foreach(var window in windows.Values)window.Hide();
         try
         {
             ValidateGeometry();layout.Apply(Store.State.Baskets.Select(b=>b.ScreenBounds).ToArray(),preserveManagedPositions,desktopTargets);
@@ -250,7 +250,9 @@ internal sealed class App : ApplicationContext
             foreach(var b in Store.State.Baskets)
             {
                 if(!windows.TryGetValue(b.Id,out var window)||window.IsDisposed){window=new BasketWindow(this,b);windows[b.Id]=window;}
-                window.Attach(layout.Shell);if(!hideVerificationWindows)window.Show();
+                // Existing frames stay visible while only their contents change.
+                // Complete icon avoidance before attaching/showing a new or moved frame.
+                window.Attach(layout.Shell);if(!hideVerificationWindows&&!window.Visible)window.Show();
             }
             if(events!=null){completedEventsSeen+=events.Seen;completedEventsRelevant+=events.Relevant;events.Dispose();}events=new DesktopEvents(layout.Shell,ScheduleCheck);
             if(watchers.Count==0)WatchDesktop();

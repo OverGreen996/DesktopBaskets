@@ -4,6 +4,10 @@ internal sealed class BasketWindow : Form
 {
     readonly App app;
     readonly BasketGlassWindow glass;
+    IntPtr attachedHandle,attachedHost;
+    Rectangle attachedBounds;
+    public int NativeVisibilityChanges {get;private set;}
+    public int GlassVisibilityChanges=>glass.NativeVisibilityChanges;
     public IntPtr GlassHandle=>glass.Handle;
     public int GlassPaintCount=>glass.PaintCount;
     public int ChromePaintCount {get;private set;}
@@ -110,14 +114,21 @@ internal sealed class BasketWindow : Form
     public void Attach(DesktopShell shell)
     {
         var hwnd=Handle;
-        long style=Native.GetWindowLongPtr(hwnd,-16).ToInt64();
-        Native.SetWindowLongPtr(hwnd,-16,new IntPtr((style&~0x80000000L)|0x40000000L));
-        Native.SetParent(hwnd,shell.Host);
-        if(Native.GetParent(hwnd)!=shell.Host)throw new InvalidOperationException("無法把整理籃附加到桌面，這個分類尚未顯示。");
+        bool reattach=attachedHandle!=hwnd||attachedHost!=shell.Host||Native.GetParent(hwnd)!=shell.Host;
+        if(reattach)
+        {
+            long style=Native.GetWindowLongPtr(hwnd,-16).ToInt64();
+            Native.SetWindowLongPtr(hwnd,-16,new IntPtr((style&~0x80000000L)|0x40000000L));
+            Native.SetParent(hwnd,shell.Host);
+            if(Native.GetParent(hwnd)!=shell.Host)throw new InvalidOperationException("無法把整理籃附加到桌面，這個分類尚未顯示。");
+            Native.SetWindowLongPtr(hwnd,-20,new IntPtr(Native.GetWindowLongPtr(hwnd,-20).ToInt64()|0x80000));
+            if(!Native.SetLayeredWindowAttributes(hwnd,TransparentKey,255,1))throw new InvalidOperationException("Windows 無法設定整理框的清晰前景。");
+        }
         var p=new Native.POINT(new Point(Basket.X,Basket.Y));Native.ScreenToClient(shell.Host,ref p);
-        if(!Native.SetWindowPos(hwnd,IntPtr.Zero,p.X,p.Y,Basket.Width,Basket.Collapsed?Grid.HeaderFor(Basket.Width):Basket.Height,0x10|0x20))throw new InvalidOperationException("Windows 無法設定整理籃位置。");
-        Native.SetWindowLongPtr(hwnd,-20,new IntPtr(Native.GetWindowLongPtr(hwnd,-20).ToInt64()|0x80000));
-        if(!Native.SetLayeredWindowAttributes(hwnd,TransparentKey,255,1))throw new InvalidOperationException("Windows 無法設定整理框的清晰前景。");
+        var bounds=new Rectangle(p.X,p.Y,Basket.Width,Basket.Collapsed?Grid.HeaderFor(Basket.Width):Basket.Height);
+        if(reattach||attachedBounds!=bounds)
+            if(!Native.SetWindowPos(hwnd,IntPtr.Zero,bounds.X,bounds.Y,bounds.Width,bounds.Height,0x10|(reattach?0x20u:0)))throw new InvalidOperationException("Windows 無法設定整理籃位置。");
+        attachedHandle=hwnd;attachedHost=shell.Host;attachedBounds=bounds;
         glass.Attach(shell);
         items.Visible=!Basket.Collapsed;footer.Visible=!Basket.Collapsed;
         items.RefreshItems();
@@ -139,6 +150,11 @@ internal sealed class BasketWindow : Form
         base.OnVisibleChanged(e);
         if(glass==null||glass.IsDisposed)return;
         if(Visible&&!TopLevel)glass.ShowBehind();else glass.Hide();
+    }
+    protected override void WndProc(ref Message m)
+    {
+        if(m.Msg==0x18)NativeVisibilityChanges++;
+        base.WndProc(ref m);
     }
     Edge ResizeAt(Point p)
     {

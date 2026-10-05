@@ -27,7 +27,7 @@ internal static partial class Verification
         var cells=Enumerable.Range(0,3).Select(i=>new Point(first!.Value.X,first.Value.Y+i*spacing.Height)).ToArray();
         string desktop=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         var paths=Enumerable.Range(0,3).Select(i=>Path.Combine(desktop,"DesktopBaskets-refresh-"+Guid.NewGuid().ToString("N")+".txt")).ToArray();
-        App? app=null;bool selectedCleared=false,filled=false,stable=false,restored=false,returned=false;int relevant=0;string diagnostic="";
+        App? app=null;bool selectedCleared=false,filled=false,stable=false,restored=false,returned=false,frameStable=false;int relevant=0;string diagnostic="";
         void Pump(int milliseconds){var watch=Stopwatch.StartNew();while(watch.ElapsedMilliseconds<milliseconds){Application.DoEvents();System.Threading.Thread.Sleep(15);}}
         try
         {
@@ -41,8 +41,15 @@ internal static partial class Verification
                 shell.SelectForVerification(created.FindIndex(i=>i.Key==paths[0]));
             }
             finally{foreach(var i in created)i.Dispose();}
-            var store=new Store(Path.Combine(data,"config"));store.State.Baskets.Add(basket);store.Add(basket,paths[0]);
-            app=new App(store,true);app.Toggle();app.HideVerificationWindows();Pump(500);
+            var store=new Store(Path.Combine(data,"config"));store.State.Baskets.Add(basket);
+            app=new App(store,true);app.Toggle();Pump(500);
+            var frame=app.DesktopWindows.Single();var frameHandle=frame.Handle;var glassHandle=frame.GlassHandle;
+            int frameVisibility=frame.NativeVisibilityChanges,glassVisibility=frame.GlassVisibilityChanges;
+            app.AddPaths(basket,new[]{paths[0]});Pump(500);
+            frameStable=frame.Handle==frameHandle&&frame.GlassHandle==glassHandle&&Native.IsWindowVisible(frameHandle)&&Native.IsWindowVisible(glassHandle)
+                &&frame.NativeVisibilityChanges==frameVisibility&&frame.GlassVisibilityChanges==glassVisibility&&frame.ObjectCount==1;
+            Require(frameStable,"Adding a desktop file hid/recreated the frame or glass surface, or failed to update its count.");
+            app.HideVerificationWindows();Pump(100);
             bool CheckNative()
             {
                 var icons=shell.ReadIcons();
@@ -102,6 +109,7 @@ internal static partial class Verification
         Require(restored,"Native refresh verification did not restore the original desktop layout.");
         return new{Passed=true,VacancyFilledInNativeOrder=filled,NativeSelectionCleared=selectedCleared,ThreeExplorerRefreshesPassed=true,
             EventDrivenRepair=true,DesktopEventsRelevant=relevant,NoSelfTriggeredEventLoop=stable,OriginalFilePathsUnchanged=true,
+            AddingFileKeepsFrameAndGlassVisible=frameStable,AddingFilePreservesBothWindowHandles=frameStable,AddingFileUpdatesObjectCount=frameStable,
             DragReturnDisplaysNativeIconNearDrop=returned,DragReturnRemovesVisualMembership=returned,DragReturnPreservesFileContents=returned,DesktopPositionsAndFlagsRestored=restored};
     }
 }

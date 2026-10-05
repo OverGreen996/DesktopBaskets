@@ -405,13 +405,27 @@ internal static partial class Verification
         finally
         {
             app.Quit();if(File.Exists(notificationFile))File.Delete(notificationFile);
-            Thread.Sleep(400); // test-only: wait for Explorer to finish removing our temporary file
-            var live=shell.ReadIcons();
-            try{shell.SetManualPositions();shell.Position(live,original.ToDictionary(i=>i.Key,i=>i.Position));shell.SetLayoutFlags((flags&1)!=0,(flags&4)!=0);}
-            finally{foreach(var i in live)i.Dispose();}
-            var after=shell.ReadIcons();
-            try{restored=original.All(i=>after.Any(j=>j.Key==i.Key&&j.Position==i.Position));}
-            finally{foreach(var i in after)i.Dispose();foreach(var i in original)i.Dispose();}
+            // Explorer's asynchronous removal can apply a pending rearrangement after
+            // the test has restored positions. Wait for two matching observations;
+            // this bounded cleanup is verification-only, never a production poll.
+            var cleanup=Stopwatch.StartNew();int matching=0;
+            try
+            {
+                while(cleanup.ElapsedMilliseconds<4000&&matching<2)
+                {
+                    Thread.Sleep(200);Application.DoEvents();
+                    var live=shell.ReadIcons();
+                    try
+                    {
+                        bool matches=original.All(i=>live.Any(j=>j.Key==i.Key&&j.Position==i.Position))&&!live.Any(i=>i.Key==notificationFile)&&(shell.Flags&5)==(flags&5);
+                        if(matches){matching++;continue;}
+                        matching=0;shell.SetManualPositions();shell.Position(live,original.ToDictionary(i=>i.Key,i=>i.Position));shell.SetLayoutFlags((flags&1)!=0,(flags&4)!=0);
+                    }
+                    finally{foreach(var i in live)i.Dispose();}
+                }
+                restored=matching==2;
+            }
+            finally{foreach(var i in original)i.Dispose();}
         }
         Require(restored,"Event test failed to restore baseline desktop; restore from "+Path.Combine(store.Root,"baseline-state.json"));return result!;
     }

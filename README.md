@@ -26,7 +26,7 @@ Desktop Baskets 是 Windows 原生桌面分類工具。以《明日方舟：終�
 
 | 能力 | 實際行為 |
 | :--- | :--- |
-| **直接拖入** | 桌面檔案、資料夾與捷徑可直接分類；框外不再重複顯示原生圖示。 |
+| **直接拖入** | 桌面檔案、資料夾與捷徑可直接分類；框外不再重複顯示原生圖示。已有籃框保持可見，不再整批隱藏再顯示。 |
 | **原始路徑保留** | 分類與跨籃移動只改視覺歸屬，原檔不搬移、不複製，也不建立額外捷徑。 |
 | **空位自動補齊** | 分類後，後面的未分類圖示依桌面順序補上空位；重新整理後保留已整理位置並清除隱藏圖示的選取框。 |
 | **桌面圖示避讓** | 新增、移動或放大整理框時，先把擋到的未分類圖示擠到可用位置。 |
@@ -62,7 +62,7 @@ Desktop Baskets 是 Windows 原生桌面分類工具。以《明日方舟：終�
 
 ## 開始使用
 
-1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.6-x64.exe**。
+1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.7-x64.exe**。
 2. 執行安裝程式。預設只安裝到目前 Windows 帳號，不需要系統管理員權限。
 3. 從開始功能表開啟 **Desktop Baskets**，新增「遊戲」、「工作」、「雜項」等分類。
 4. 把桌面項目拖進框內，雙擊即可開啟。

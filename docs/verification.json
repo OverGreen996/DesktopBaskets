@@ -1,5 +1,5 @@
 {
-  "Version": "0.4.6",
+  "Version": "0.4.7",
   "chrome-test": {
     "Passed": true,
     "NoSeparateTitleStrip": true,
@@ -60,7 +60,7 @@
   },
   "Installer": {
     "Passed": true,
-    "Version": "0.4.6",
+    "Version": "0.4.7",
     "ProductionSetupRefusesRunningApp": true,
     "PerUserInstallation": true,
     "PayloadFilesHashMatch": true,
@@ -98,16 +98,19 @@
     },
     "RetestedOn043": false
   },
-  "VirtualizationLastTestedVersion": "0.4.6",
+  "VirtualizationLastTestedVersion": "0.4.7",
   "refresh-test": {
     "Passed": true,
     "VacancyFilledInNativeOrder": true,
     "NativeSelectionCleared": true,
     "ThreeExplorerRefreshesPassed": true,
     "EventDrivenRepair": true,
-    "DesktopEventsRelevant": 396,
+    "DesktopEventsRelevant": 397,
     "NoSelfTriggeredEventLoop": true,
     "OriginalFilePathsUnchanged": true,
+    "AddingFileKeepsFrameAndGlassVisible": true,
+    "AddingFilePreservesBothWindowHandles": true,
+    "AddingFileUpdatesObjectCount": true,
     "DragReturnDisplaysNativeIconNearDrop": true,
     "DragReturnRemovesVisualMembership": true,
     "DragReturnPreservesFileContents": true,
@@ -138,11 +141,11 @@
     "Passed": true,
     "DesktopChangeReflow": true,
     "NoContinuousPolling": true,
-    "EventsSeen": 3,
-    "EventsRelevant": 3,
+    "EventsSeen": 105,
+    "EventsRelevant": 105,
     "Status": "原始路徑不變  /  格數縮放 · 磁吸對齊 · 框外桌面可正常操作"
   },
-  "ChromeLastTestedVersion": "0.4.6",
+  "ChromeLastTestedVersion": "0.4.7",
   "shell-menu-test": {
     "Passed": true,
     "NativeShellMenu": true,
@@ -231,6 +234,8 @@
   },
   "VerificationLimits": {
     "Note": "拖出驗證包括 OLE 拖曳事件及實際 Explorer 圖示返回落點；未完成端對端滑鼠拖放。原生內容視窗已由 Computer Use 實際確認。",
-    "EndToEndMouseDragVerified": false
-  }
+    "EndToEndMouseDragVerified": false,
+    "FrameFlickerCheck": "實際桌面加入檔案時，前景及玻璃視窗均沒有隱藏／顯示通知，handle 保持相同，數量正常更新。未以錄影量測每一幀。"
+  },
+  "ShellPropertiesLastTestedVersion": "0.4.6"
 }
