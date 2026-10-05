@@ -18,6 +18,7 @@ internal sealed class App : ApplicationContext
     int completedEventsSeen,completedEventsRelevant;
     public int DesktopEventsSeen => completedEventsSeen+(events?.Seen??0);
     public int DesktopEventsRelevant => completedEventsRelevant+(events?.Relevant??0);
+    internal int DesktopCheckCount {get;private set;}
     public int VisualPaintCount=>windows.Values.Sum(w=>w.ChromePaintCount+w.GlassPaintCount+w.Viewport.PaintCount);
     bool applying,quitting,desktopRefreshed;
     bool hideVerificationWindows;
@@ -161,20 +162,45 @@ internal sealed class App : ApplicationContext
     {
         Theme.Try(()=>{Store.Remove(basket,entry);if(Store.State.Enabled)ApplyLayout();Refresh(basket.Id);});
     }
+    public bool CanReturnToDesktop(Entry entry)=>new[]{Store.DesktopRoot,Store.PublicDesktopRoot}
+        .Any(root=>string.Equals(Path.GetDirectoryName(entry.Path),root.TrimEnd(Path.DirectorySeparatorChar),StringComparison.OrdinalIgnoreCase));
+    public bool IsDesktopDrop(Point point)
+    {
+        using var dpi=new Native.PhysicalDpiScope();
+        if(!Store.State.Enabled||Store.State.Baskets.Any(b=>b.ScreenBounds.Contains(point))||!Native.PhysicalScreens().Any(s=>s.WorkingArea.Contains(point)))return false;
+        var shell=layout.Shell;var target=Native.WindowFromPoint(new Native.POINT(point));
+        return target==shell.List||target==shell.Host||Native.IsChild(shell.List,target);
+    }
+    public void ReturnEntryToDesktop(string id,Point point)
+    {
+        var owner=Store.State.Baskets.FirstOrDefault(b=>b.Entries.Any(e=>e.Id==id));
+        var entry=owner?.Entries.FirstOrDefault(e=>e.Id==id);
+        if(owner==null||entry==null||!CanReturnToDesktop(entry)||!Store.State.Enabled)return;
+        int index=owner.Entries.IndexOf(entry);owner.Entries.RemoveAt(index);
+        try{ApplyLayout(false,new Dictionary<string,Point>{{entry.Path,point}});Store.Save();Refresh(owner.Id);}
+        catch(Exception ex){owner.Entries.Insert(index,entry);RecoverLayout();Store.Save();Refresh(owner.Id);Theme.Error(ex);}
+    }
     public void TransferEntry(Basket target,string id)
     {
         var entry=Store.State.Baskets.SelectMany(b=>b.Entries).FirstOrDefault(e=>e.Id==id);
         if(entry!=null)Theme.Try(()=>{Store.Transfer(target,entry);Refresh(target.Id);});
     }
-    public ContextMenuStrip EntryMenu(Basket basket,Entry entry)
+    public void ShowEntryMenu(Entry entry,Point screenPoint)
     {
-        var menu=new ContextMenuStrip();menu.Items.Add("開啟",null,(_,_)=>Theme.Try(()=>Theme.Open(entry.Path)));
-        menu.Items.Add("顯示所在位置",null,(_,_)=>Theme.Try(()=>Theme.Reveal(entry.Path)));
-        var transfer=new ToolStripMenuItem("移至其他分類");
-        foreach(var b in Store.State.Baskets.Where(b=>b!=basket))transfer.DropDownItems.Add(b.Name,null,(_,_)=>TransferEntry(b,entry.Id));
-        menu.Items.Add(transfer);menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("移出分類，顯示回桌面",null,(_,_)=>RemoveEntry(basket,entry));
-        menu.Closed+=(_,_)=>menu.Dispose();return menu;
+        Theme.Try(()=>
+        {
+            if(!Store.Exists(entry.Path)){RefreshMissingEntries(entry);return;}
+            var modifiers=Control.ModifierKeys;
+            using(var menu=new ShellContextMenu(entry.Path,Manager.Handle,(modifiers&Keys.Shift)!=0))menu.Show(screenPoint,Manager.Handle,modifiers);
+            RefreshMissingEntries(entry);
+        });
+    }
+    internal void RefreshMissingEntries(Entry? menuEntry=null)
+    {
+        bool changed=false;
+        foreach(var basket in Store.State.Baskets)
+            changed|=basket.Entries.RemoveAll(e=>(e==menuEntry||CanReturnToDesktop(e))&&!Store.Exists(e.Path))>0;
+        if(changed){Store.Save();Refresh();}
     }
     public ContextMenuStrip BasketMenu(Basket basket)
     {
@@ -183,7 +209,8 @@ internal sealed class App : ApplicationContext
         menu.Items.Add(basket.Collapsed?"展開":"收合",null,(_,_)=>Collapse(basket)).Enabled=!basket.Locked;
         menu.Items.Add("加入桌面檔案",null,(_,_)=>PickDesktop(basket));menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("移除分類，圖示顯示回桌面",null,(_,_)=>DeleteBasket(basket));
-        menu.Closed+=(_,_)=>menu.Dispose();return menu;
+        // ToolStrip raises Closed before dispatching the clicked item's action.
+        menu.Closed+=(_,_)=>Manager.BeginInvoke(new Action(()=>menu.Dispose()));return menu;
     }
     public void Toggle()
     {
@@ -205,19 +232,20 @@ internal sealed class App : ApplicationContext
         var baskets=Store.State.Baskets;
         foreach(var b in baskets)
         {
-            if(!Screen.AllScreens.Any(s=>s.WorkingArea.Contains(b.ScreenBounds)))throw new InvalidOperationException("分類「"+b.Name+"」超出螢幕工作區。請在分類設定調整位置或大小。");
+            if(!Native.PhysicalScreens().Any(s=>s.WorkingArea.Contains(b.ScreenBounds)))throw new InvalidOperationException("分類「"+b.Name+"」超出螢幕工作區。請在分類設定調整位置或大小。");
             if(b.Width<(b.Locked?2*Grid.CellWidth+Grid.Side:Grid.MinWidth)||b.Height<(b.Locked?Grid.Header+40:Grid.MinHeight))throw new InvalidOperationException($"分類籃太小。完整邊框至少需要 {Grid.MinColumns} × {Grid.MinRows} 格。");
         }
         for(int i=0;i<baskets.Count;i++)for(int j=i+1;j<baskets.Count;j++)
             if(baskets[i].ScreenBounds.IntersectsWith(baskets[j].ScreenBounds))throw new InvalidOperationException("分類籃位置重疊，請移到其他位置。桌面圖示尚未改動。");
     }
-    void ApplyLayout(bool preserveManagedPositions=false)
+    void ApplyLayout(bool preserveManagedPositions=false,IReadOnlyDictionary<string,Point>? desktopTargets=null)
     {
+        using var dpi=new Native.PhysicalDpiScope();
         applying=true;debounce.Stop();
         foreach(var window in windows.Values)window.Hide();
         try
         {
-            ValidateGeometry();layout.Apply(Store.State.Baskets.Select(b=>b.ScreenBounds).ToArray(),preserveManagedPositions);
+            ValidateGeometry();layout.Apply(Store.State.Baskets.Select(b=>b.ScreenBounds).ToArray(),preserveManagedPositions,desktopTargets);
             foreach(var id in windows.Keys.Where(k=>!Store.State.Baskets.Any(b=>b.Id==k)).ToArray()){windows[id].Dispose();windows.Remove(id);}
             foreach(var b in Store.State.Baskets)
             {
@@ -267,10 +295,13 @@ internal sealed class App : ApplicationContext
     }
     void CheckDesktop()
     {
+        DesktopCheckCount++;
+        using var dpi=new Native.PhysicalDpiScope();
         if(!Store.State.Enabled||applying)return;
         try
         {
             if(!layout.Shell.IconsVisible){foreach(var w in windows.Values)w.Hide();return;}
+            RefreshMissingEntries();
             var icons=layout.Shell.ReadIcons();
             bool blocked;bool refresh=desktopRefreshed;desktopRefreshed=false;
             try
@@ -279,7 +310,7 @@ internal sealed class App : ApplicationContext
                 var spacing=layout.Shell.Spacing;
                 var assigned=new HashSet<string>(Store.State.Baskets.SelectMany(b=>b.Entries).Select(e=>e.Path),StringComparer.OrdinalIgnoreCase);
                 blocked=(refresh&&Store.State.Icons.Any(b=>icons.Any(i=>i.Key==b.Key&&i.Position!=new Point(b.LastX,b.LastY))))||icons.Any(i=>assigned.Contains(i.Key)
-                    ?Screen.AllScreens.Any(s=>layout.Shell.ToView(s.Bounds).IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing)))
+                    ?Native.PhysicalScreens().Any(s=>layout.Shell.ToView(s.Bounds).IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing)))
                     :rects.Any(r=>r.IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing))))
                     ||Store.State.Icons.Any(b=>b.Hidden&&!assigned.Contains(b.Key));
                 if(!blocked){layout.Shell.CleanAssignedSelection(icons,assigned);if(!refresh)layout.RememberUserPositions(icons);}

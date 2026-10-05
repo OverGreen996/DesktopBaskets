@@ -119,7 +119,6 @@ internal sealed class BasketViewport : Control
             offsetStart=scrollOffset;return;
         }
         selected=Hit(e.Location);down=e.Location;dragging=e.Button==MouseButtons.Left&&selected>=0;Invalidate();
-        if(e.Button==MouseButtons.Right&&selected>=0)app.EntryMenu(basket,basket.Entries[selected]).Show(this,e.Location);
     }
     protected override void OnMouseMove(MouseEventArgs e)
     {
@@ -134,11 +133,18 @@ internal sealed class BasketViewport : Control
         if(dragging&&e.Button==MouseButtons.Left&&Math.Abs(e.X-down.X)+Math.Abs(e.Y-down.Y)>=8&&selected>=0)
         {
             dragging=false;var entry=basket.Entries[selected];var data=new DataObject();data.SetData("DesktopBaskets.Entry",entry.Id);
+            using var desktopDrag=new DesktopReturnDrag(this,()=>Native.PhysicalCursor,p=>app.CanReturnToDesktop(entry)&&app.IsDesktopDrop(p));
             DoDragDrop(data,DragDropEffects.Move);
+            if(desktopDrag.DropPoint.HasValue)app.ReturnEntryToDesktop(entry.Id,desktopDrag.DropPoint.Value);
         }
         Cursor=EdgeCursor?.Invoke()??(next>=0?Cursors.Hand:Cursors.Default);
     }
-    protected override void OnMouseUp(MouseEventArgs e){dragging=false;if(scrolling){scrolling=false;Capture=false;}base.OnMouseUp(e);}
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        dragging=false;if(scrolling){scrolling=false;Capture=false;}base.OnMouseUp(e);
+        int index=Hit(e.Location);
+        if(e.Button==MouseButtons.Right&&index>=0)app.ShowEntryMenu(basket.Entries[index],Native.PhysicalCursor);
+    }
     protected override void OnMouseCaptureChanged(EventArgs e){if(!Capture){scrolling=false;dragging=false;}base.OnMouseCaptureChanged(e);}
     protected override void OnMouseLeave(EventArgs e)
     {
@@ -154,6 +160,11 @@ internal sealed class BasketViewport : Control
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);if(basket.Entries.Count==0)return;
+        if(e.KeyCode==Keys.Apps||(e.KeyCode==Keys.F10&&e.Shift))
+        {
+            if(selected>=0){using var dpi=new Native.PhysicalDpiScope();app.ShowEntryMenu(basket.Entries[selected],PointToScreen(ItemBounds(selected).Location));}
+            e.Handled=true;e.SuppressKeyPress=true;return;
+        }
         int next=Math.Max(0,selected);
         switch(e.KeyCode)
         {
@@ -163,7 +174,6 @@ internal sealed class BasketViewport : Control
             case Keys.PageDown:next+=Columns*Math.Max(1,ClientSize.Height/Grid.CellHeight);break;
             case Keys.Enter:if(selected>=0)Theme.Try(()=>Theme.Open(basket.Entries[selected].Path));return;
             case Keys.Delete:if(selected>=0)app.RemoveEntry(basket,basket.Entries[selected]);return;
-            case Keys.Apps:if(selected>=0)app.EntryMenu(basket,basket.Entries[selected]).Show(this,ItemBounds(selected).Location);return;
             default:return;
         }
         selected=MathEx.Clamp(next,0,basket.Entries.Count-1);var rect=ItemBounds(selected);

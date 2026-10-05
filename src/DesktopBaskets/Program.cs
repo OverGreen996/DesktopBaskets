@@ -28,6 +28,9 @@ internal static class Program
             if(args.Contains("--standby-probe")){Write(report,Verification.StandbyProbe(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--virtual-test")){Write(report,Verification.VirtualTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--chrome-test")){Write(report,Verification.ChromeTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--shell-menu-test")){Write(report,Verification.ShellMenuTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--shell-properties-test")){Write(report,Verification.ShellPropertiesTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--ui-demo")){Verification.Preview(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"));return 0;}
             using var mutex=new Mutex(true,"Local\\DesktopBaskets_"+Environment.UserName,out bool created);
             if(!created){MessageBox.Show("桌面整理工具已在執行。請從右下角系統匣開啟分類管理。","Desktop Baskets");return 0;}
             var store=new Store();
@@ -62,7 +65,7 @@ internal static partial class Verification
     {
         using var shell=new DesktopShell();var icons=shell.ReadIcons();
         try {return new{Passed=true,Host=shell.Host.ToInt64(),List=shell.List.ToInt64(),shell.Origin,shell.Spacing,shell.Flags,shell.Interactive,Count=icons.Count,
-            Screens=Screen.AllScreens.Select(s=>new{s.DeviceName,s.WorkingArea}).ToArray()};}
+            Screens=Screen.AllScreens.Select(s=>new{s.DeviceName,s.WorkingArea}).ToArray(),Dpi=Native.DpiDiagnostic(shell.List)};}
         finally{foreach(var icon in icons)icon.Dispose();}
     }
     public static object RestoreBackup(string path)
@@ -114,6 +117,21 @@ internal static partial class Verification
         var twoHoles=LayoutPlanner.FillVacancies(new[]{new LayoutIcon("C",new Point(20,218)),new LayoutIcon("D",new Point(20,317))},new[]{new Point(20,20),new Point(20,119)},Array.Empty<Rectangle>(),new[]{nativeArea},nativeSpacing);
         Check(twoHoles["C"]==new Point(20,20)&&twoHoles["D"]==new Point(20,119),"Multiple grouped files compact in stable order");
         Check(LayoutPlanner.FillVacancies(chain,Array.Empty<Point>(),Array.Empty<Rectangle>(),new[]{nativeArea},nativeSpacing).Count==0,"Intentional gaps without a classified source are preserved");
+        using(var source=new Control())
+        {
+            bool desktopTarget=true;var dropPoint=new Point(450,300);
+            using(var session=new DesktopReturnDrag(source,()=>dropPoint,_=>desktopTarget))
+            {
+                var held=new QueryContinueDragEventArgs(1,false,DragAction.Continue);session.Continue(source,held);
+                Check(!session.DropPoint.HasValue&&held.Action==DragAction.Continue,"Desktop drag waits until the mouse button is released");
+                desktopTarget=false;var elsewhere=new QueryContinueDragEventArgs(0,false,DragAction.Drop);session.Continue(source,elsewhere);
+                Check(!session.DropPoint.HasValue&&elsewhere.Action==DragAction.Drop,"Basket and foreign-window targets keep the normal OLE drop route");
+                desktopTarget=true;var released=new QueryContinueDragEventArgs(0,false,DragAction.Drop);session.Continue(source,released);
+                Check(session.DropPoint==dropPoint&&released.Action==DragAction.Cancel,"Desktop release is consumed as a visual return instead of a Shell file operation");
+                var escape=new QueryContinueDragEventArgs(1,true,DragAction.Continue);session.Continue(source,escape);
+                Check(!session.DropPoint.HasValue&&escape.Action==DragAction.Cancel,"Escape cancels without removing classification");
+            }
+        }
         var random=new Random(947);
         for(int iteration=0;iteration<150;iteration++)
         {
@@ -189,6 +207,12 @@ internal static partial class Verification
         for(int i=0;i<15;i++)misc.Entries.Add(new Entry{Name=$"文件 {i+1:00}.txt",Path=System.IO.Path.Combine(root,$"文件 {i+1:00}.txt")});
         store.Save();return(store,new App(store,true));
     }
+    public static void Preview(string root)
+    {
+        var (_,app)=Demo(Path.Combine(root,"ui-demo"));
+        using var timeout=new System.Windows.Forms.Timer{Interval=180000};timeout.Tick+=(_,_)=>app.Quit();timeout.Start();
+        Application.Run(app);
+    }
     public static void Capture(string path,string root)
     {
         var (_,app)=Demo(root);
@@ -207,6 +231,18 @@ internal static partial class Verification
             var header=manager.Controls.OfType<WindowHeaderPanel>().Single();
             var buttons=header.Controls.OfType<CaptionButton>().OrderBy(b=>b.Action).ToArray();
             Require(buttons.Length==3,"Caption controls missing");
+            void CheckCaptionMouseHits()
+            {
+                foreach(var button in buttons)
+                {
+                    var screen=button.PointToScreen(new Point(button.Width/2,button.Height/2));
+                    var packed=new IntPtr((screen.X&0xffff)|((screen.Y&0xffff)<<16));
+                    Require(Native.SendMessage(manager.Handle,0x84,IntPtr.Zero,packed).ToInt64()==1,"Native title hit test intercepted "+button.Action+" button mouse input");
+                }
+                foreach(var command in header.Controls.OfType<FlowLayoutPanel>().SelectMany(p=>p.Controls.OfType<Button>()))
+                    Require(manager.FrameHitTest(manager.PointToClient(command.PointToScreen(new Point(command.Width/2,command.Height/2))))==1,"Header command button is being treated as title drag space");
+            }
+            CheckCaptionMouseHits();
             Require(manager.PointToScreen(Point.Empty)==manager.Location,"Native title strip still reserves screen space");
             Require(manager.FrameHitTest(new Point(header.Left+180,header.Top+12))==2,"Integrated header is not a native drag / double-click caption");
             var m=manager.ResizeMargin;
@@ -222,6 +258,7 @@ internal static partial class Verification
             var work=Screen.FromControl(manager).WorkingArea;
             var visibleClient=manager.RectangleToScreen(manager.ClientRectangle);
             Require(manager.WindowState==FormWindowState.Maximized&&visibleClient==work,$"Maximized manager does not fit the monitor work area: state={manager.WindowState}, visible={visibleClient}, work={work}");
+            CheckCaptionMouseHits();
             buttons[1].PerformClick();Application.DoEvents();
             Require(manager.WindowState==FormWindowState.Normal&&manager.Bounds==original,$"Restore lost original manager geometry: state={manager.WindowState}, actual={manager.Bounds}, original={original}");
             buttons[0].PerformClick();Application.DoEvents();
@@ -238,13 +275,23 @@ internal static partial class Verification
             }
             manager.Size=manager.MinimumSize;Application.DoEvents();
             Require(buttons.All(b=>header.ClientRectangle.Contains(b.Bounds)),"Caption controls clipped at the smallest manager size");
+            CheckCaptionMouseHits();
             using(var compact=manager.RenderClient())compact.Save(Path.Combine(root,"manager-minimum-v042.png"));
             manager.Bounds=original;Application.DoEvents();
             // Only a smoke-test manager closes here; production Explorer layout is untouched.
             var basketIds=app.Store.State.Baskets.Select(b=>b.Id).ToArray();buttons[2].PerformClick();Application.DoEvents();
             Require(!manager.Visible&&!manager.IsDisposed&&app.Store.State.Baskets.Select(b=>b.Id).SequenceEqual(basketIds),"Closing manager removed desktop classifications");
             app.ShowManager();Application.DoEvents();Require(manager.Visible,"Tray reopen path failed");
-            return new{Passed=true,NoSeparateTitleStrip=true,HeaderMatchesInterfaceBackground=true,VectorCaptionButtons=3,NativeDragAndDoubleClickCaption=true,EightResizeDirections=true,MaximizeFitsWorkingArea=true,RestorePreservesBounds=true,RepeatedWindowStateTransitions=true,MinimumManagerCaptionControlsVisible=true,MinimizeWorks=true,CloseHidesManagerWithoutRemovingCategories=true,ReopenWorks=true,manager.RoundedCornersSupported};
+            var category=app.Store.State.Baskets.First();
+            for(int cycle=0;cycle<5;cycle++)
+            {
+                bool locked=category.Locked;using var menu=app.BasketMenu(category);
+                menu.Show(manager,new Point(40,160));Application.DoEvents();
+                menu.Items[1].PerformClick();Application.DoEvents();
+                Require(category.Locked!=locked,"Category menu click did not dispatch after close.");
+                Require(menu.IsDisposed,"Closed category menu was not disposed after dispatch.");
+            }
+            return new{Passed=true,NoSeparateTitleStrip=true,HeaderMatchesInterfaceBackground=true,VectorCaptionButtons=3,CaptionButtonsReceiveNativeClientHits=true,HeaderCommandButtonsReceiveClientHits=true,NativeDragAndDoubleClickCaption=true,EightResizeDirections=true,MaximizeFitsWorkingArea=true,RestorePreservesBounds=true,RepeatedWindowStateTransitions=true,MinimumManagerCaptionControlsVisible=true,MinimizeWorks=true,CloseHidesManagerWithoutRemovingCategories=true,ReopenWorks=true,RepeatedCategoryMenuCommandsWithoutDisposedException=true,manager.RoundedCornersSupported};
         }
         finally{app.Quit();}
     }
@@ -366,7 +413,7 @@ internal static partial class Verification
             try{restored=original.All(i=>after.Any(j=>j.Key==i.Key&&j.Position==i.Position));}
             finally{foreach(var i in after)i.Dispose();foreach(var i in original)i.Dispose();}
         }
-        Require(restored,"Event test failed to restore baseline desktop");return result!;
+        Require(restored,"Event test failed to restore baseline desktop; restore from "+Path.Combine(store.Root,"baseline-state.json"));return result!;
     }
     public static object Probe(string root)
     {
@@ -390,6 +437,7 @@ internal static partial class Verification
         var (store,app)=Demo(System.IO.Path.Combine(root,"standby"));app.Toggle();app.Manager.Hide();
         var process=Process.GetCurrentProcess();TimeSpan cpu=default;var watch=new Stopwatch();object? result=null;
         double working=0,privateMemory=0;int phase=0,paintStart=0,eventStart=0;
+        int seenStart=0,checksStart=0;
         using var timer=new System.Windows.Forms.Timer{Interval=App.StandbyAfterSeconds*1000+2000};
         timer.Tick+=(_,_)=>
         {
@@ -399,7 +447,7 @@ internal static partial class Verification
                 if(!app.IsStandby){timer.Interval=2000;return;}
                 phase=1;
                 cpu=process.TotalProcessorTime;working=process.WorkingSet64/1048576.0;privateMemory=process.PrivateMemorySize64/1048576.0;
-                paintStart=app.VisualPaintCount;eventStart=app.DesktopEventsRelevant;
+                paintStart=app.VisualPaintCount;eventStart=app.DesktopEventsRelevant;seenStart=app.DesktopEventsSeen;checksStart=app.DesktopCheckCount;
                 watch.Start();timer.Interval=10000;return;
             }
             bool standby=app.IsStandby;double cpuMs=(process.TotalProcessorTime-cpu).TotalMilliseconds;double seconds=watch.Elapsed.TotalSeconds;
@@ -412,7 +460,9 @@ internal static partial class Verification
                 StandbyMaintained=standby,ObservedSeconds=Math.Round(seconds,2),CpuMilliseconds=cpuMs,
                 CpuSingleCorePercent=Math.Round(cpuMs/(seconds*1000)*100,3),StandbyWorkingSetMiB=Math.Round(working,1),
                 PrivateCommittedMiB=Math.Round(privateMemory,1),WakeAndManagerRedrawMilliseconds=wake.Elapsed.TotalMilliseconds,
-                StandbyPaints=paints,RelevantDesktopEventsDuringMeasurement=relevantEvents,TimerStopsWhileIdle=true,ThreadsNotSuspended=true,WorkingSetTrimmedOnce=true};
+                StandbyPaints=paints,RelevantDesktopEventsDuringMeasurement=relevantEvents,AllExplorerEventsDuringMeasurement=app.DesktopEventsSeen-seenStart,
+                LayoutChecksDuringMeasurement=app.DesktopCheckCount-checksStart,
+                TimerStopsWhileIdle=true,ThreadsNotSuspended=true,WorkingSetTrimmedOnce=true};
             timer.Stop();app.Quit();
         };
         timer.Start();Application.Run(app);return result!;

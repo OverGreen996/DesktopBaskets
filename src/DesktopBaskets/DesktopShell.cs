@@ -4,6 +4,38 @@ namespace DesktopBaskets;
 
 internal static class Native
 {
+    [DllImport("user32.dll")] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+    [DllImport("user32.dll")] static extern bool GetPhysicalCursorPos(out POINT point);
+    [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr window);
+    [DllImport("user32.dll")] static extern IntPtr GetWindowDpiAwarenessContext(IntPtr window);
+    [DllImport("user32.dll")] static extern int GetAwarenessFromDpiAwarenessContext(IntPtr context);
+    [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr window,out RECT rect);
+    public static object DpiDiagnostic(IntPtr window)
+    {
+        using var scope=new PhysicalDpiScope();GetClientRect(window,out var client);
+        return new{Dpi=GetDpiForWindow(window),Awareness=GetAwarenessFromDpiAwarenessContext(GetWindowDpiAwarenessContext(window)),Client=client.Rectangle};
+    }
+    public static Point PhysicalCursor=>GetPhysicalCursorPos(out var point)?point.Point:Cursor.Position;
+    public sealed class PhysicalDpiScope : IDisposable
+    {
+        readonly IntPtr previous;
+        public PhysicalDpiScope(){try{previous=SetThreadDpiAwarenessContext(new IntPtr(-4));}catch(EntryPointNotFoundException){}}
+        public void Dispose(){if(previous!=IntPtr.Zero)SetThreadDpiAwarenessContext(previous);}
+    }
+    [StructLayout(LayoutKind.Sequential)] struct RECT {public int Left,Top,Right,Bottom;public Rectangle Rectangle=>Rectangle.FromLTRB(Left,Top,Right,Bottom);}
+    [StructLayout(LayoutKind.Sequential)] struct MONITORINFO {public int Size;public RECT Bounds,Work;public uint Flags;}
+    delegate bool MonitorCallback(IntPtr monitor,IntPtr dc,IntPtr rect,IntPtr data);
+    [DllImport("user32.dll")] static extern bool EnumDisplayMonitors(IntPtr dc,IntPtr clip,MonitorCallback callback,IntPtr data);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern bool GetMonitorInfo(IntPtr monitor,ref MONITORINFO info);
+    public static IReadOnlyList<(Rectangle Bounds,Rectangle WorkingArea)> PhysicalScreens()
+    {
+        using var dpi=new PhysicalDpiScope();var result=new List<(Rectangle,Rectangle)>();
+        // WinForms Screen objects can retain virtualized bounds after Explorer SetParent.
+        if(!EnumDisplayMonitors(IntPtr.Zero,IntPtr.Zero,(monitor,dc,rect,data)=>
+        {var info=new MONITORINFO{Size=Marshal.SizeOf<MONITORINFO>()};if(!GetMonitorInfo(monitor,ref info))return false;result.Add((info.Bounds.Rectangle,info.Work.Rectangle));return true;},IntPtr.Zero)||result.Count==0)
+            throw new System.ComponentModel.Win32Exception("Windows 無法讀取螢幕工作區。");
+        return result;
+    }
     [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; public POINT(Point p) { X=p.X; Y=p.Y; } public Point Point => new(X,Y); }
     [DllImport("user32.dll", SetLastError=true)] public static extern IntPtr SetParent(IntPtr child, IntPtr parent);
     [DllImport("user32.dll")] public static extern IntPtr GetParent(IntPtr hwnd);
@@ -14,6 +46,8 @@ internal static class Native
     [DllImport("user32.dll")] public static extern bool EnableWindow(IntPtr hwnd,bool enable);
     [DllImport("user32.dll")] public static extern bool InvalidateRect(IntPtr hwnd,IntPtr rect,bool erase);
     [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hwnd,uint message,IntPtr wParam,IntPtr lParam);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT point);
+    [DllImport("user32.dll")] public static extern bool IsChild(IntPtr parent,IntPtr child);
     [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd,uint flags);
     [DllImport("user32.dll",SetLastError=true)] public static extern bool SetLayeredWindowAttributes(IntPtr hwnd,uint key,byte alpha,uint flags);
     [DllImport("user32.dll")] public static extern bool GetLayeredWindowAttributes(IntPtr hwnd,out uint key,out byte alpha,out uint flags);
@@ -106,8 +140,8 @@ internal sealed class DesktopShell : IDisposable
     readonly IFolderView2 view;
     public IntPtr Host { get; }
     public IntPtr List { get; }
-    public Point Origin { get { var p=new Native.POINT(); Native.ClientToScreen(List, ref p); return p.Point; } }
-    public Size Spacing { get { var p=new Native.POINT(); Native.Check(view.GetSpacing(ref p)); return new Size(Math.Max(48,p.X), Math.Max(64,p.Y)); } }
+    public Point Origin { get { using var dpi=new Native.PhysicalDpiScope();var p=new Native.POINT(); Native.ClientToScreen(List, ref p); return p.Point; } }
+    public Size Spacing { get { using var dpi=new Native.PhysicalDpiScope();var p=new Native.POINT(); Native.Check(view.GetSpacing(ref p)); return new Size(Math.Max(48,p.X), Math.Max(64,p.Y)); } }
     public uint Flags { get { Native.Check(view.GetCurrentFolderFlags(out uint flags)); return flags; } }
     public bool Alive => Native.IsWindow(Host) && Native.IsWindow(List);
     public bool IconsVisible => Native.IsWindowVisible(List) && (Flags & 0x1000) == 0;
@@ -132,6 +166,7 @@ internal sealed class DesktopShell : IDisposable
     }
     public List<ShellIcon> ReadIcons()
     {
+        using var dpi=new Native.PhysicalDpiScope();
         Native.Check(view.ItemCount(2, out int count));
         var result=new List<ShellIcon>();
         try
@@ -182,6 +217,7 @@ internal sealed class DesktopShell : IDisposable
     }
     public void Position(IEnumerable<ShellIcon> icons, IReadOnlyDictionary<string,Point> positions)
     {
+        using var dpi=new Native.PhysicalDpiScope();
         var selected=icons.Where(i=>positions.TryGetValue(i.Key,out var target)&&target!=i.Position).ToArray();
         if(selected.Length==0) return;
         Native.Check(view.SelectAndPositionItems((uint)selected.Length, selected.Select(i=>i.Pidl).ToArray(),
@@ -213,8 +249,9 @@ internal sealed class DesktopLayout : IDisposable
         }
         if(changed)store.Save();
     }
-    public void Apply(IReadOnlyList<Rectangle> baskets,bool preserveManagedPositions=false)
+    public void Apply(IReadOnlyList<Rectangle> baskets,bool preserveManagedPositions=false,IReadOnlyDictionary<string,Point>? desktopTargets=null)
     {
+        using var dpi=new Native.PhysicalDpiScope();
         var desktop=Shell;
         var icons=desktop.ReadIcons();
         var oldBackups=store.State.Icons.Select(b=>new IconBackup{Key=b.Key,X=b.X,Y=b.Y,LastX=b.LastX,LastY=b.LastY,Hidden=b.Hidden}).ToList();
@@ -224,16 +261,18 @@ internal sealed class DesktopLayout : IDisposable
         bool priorSnap=(desktop.Flags&4)!=0;
         try
         {
-            var workAreas=Screen.AllScreens.Select(s=>desktop.ToView(s.WorkingArea)).ToArray();
+            var screens=Native.PhysicalScreens();var workAreas=screens.Select(s=>desktop.ToView(s.WorkingArea)).ToArray();
             var blocked=baskets.Select(b=>desktop.ToView(b)).ToArray();
+            var spacing=desktop.Spacing;
             var assigned=new HashSet<string>(store.State.Baskets.SelectMany(b=>b.Entries).Select(e=>e.Path),StringComparer.OrdinalIgnoreCase);
             var returning=new HashSet<string>(store.State.Icons.Where(b=>b.Hidden&&!assigned.Contains(b.Key)).Select(b=>b.Key),StringComparer.OrdinalIgnoreCase);
             var visible=icons.Where(i=>!assigned.Contains(i.Key)).Select(i=>
             {
                 var saved=store.State.Icons.FirstOrDefault(b=>b.Key==i.Key);
+                if(desktopTargets!=null&&desktopTargets.TryGetValue(i.Key,out var target))
+                    return new LayoutIcon(i.Key,new Point(target.X-desktop.Origin.X-spacing.Width/2,target.Y-desktop.Origin.Y-32));
                 return new LayoutIcon(i.Key,saved==null?i.Position:saved.Hidden?new Point(saved.X,saved.Y):preserveManagedPositions?new Point(saved.LastX,saved.LastY):i.Position);
             }).ToArray();
-            var spacing=desktop.Spacing;
             var plan=LayoutPlanner.Plan(visible,blocked,workAreas,spacing,returning);
             if(preserveManagedPositions)foreach(var icon in visible)
                 if(!plan.ContainsKey(icon.Key)&&icons.Any(i=>i.Key==icon.Key&&i.Position!=icon.Position))plan[icon.Key]=icon.Position;
@@ -244,7 +283,7 @@ internal sealed class DesktopLayout : IDisposable
             }).ToArray();
             var current=visible.Select(i=>new LayoutIcon(i.Key,plan.TryGetValue(i.Key,out var p)?p:i.Position)).ToArray();
             foreach(var move in LayoutPlanner.FillVacancies(current,vacancies,blocked,workAreas,spacing))plan[move.Key]=move.Value;
-            int hiddenX=Screen.AllScreens.Max(s=>desktop.ToView(s.Bounds).Right)+512;
+            int hiddenX=screens.Max(s=>desktop.ToView(s.Bounds).Right)+512;
             int hiddenIndex=0;
             foreach(var icon in icons.Where(i=>assigned.Contains(i.Key)))
                 plan[icon.Key]=new Point(hiddenX+(hiddenIndex/128)*(spacing.Width+20),20+(hiddenIndex++%128)*(spacing.Height+20));
@@ -270,7 +309,7 @@ internal sealed class DesktopLayout : IDisposable
                 {
                     if(after.Where(i=>!assigned.Contains(i.Key)).Any(i=>blocked.Any(b=>b.IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing)))))
                         throw new InvalidOperationException("Windows 未接受圖示避讓位置。整理框已暫停，避免遮住原有圖示。");
-                    if(after.Where(i=>assigned.Contains(i.Key)).Any(i=>Screen.AllScreens.Any(s=>desktop.ToView(s.Bounds).IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing)))))
+                    if(after.Where(i=>assigned.Contains(i.Key)).Any(i=>screens.Any(s=>desktop.ToView(s.Bounds).IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing)))))
                         throw new InvalidOperationException("Windows 未接受純視覺分類位置，這次分類不會顯示重複圖示。");
                     foreach(var moved in after.Where(i=>plan.ContainsKey(i.Key)))
                     {
@@ -294,6 +333,7 @@ internal sealed class DesktopLayout : IDisposable
     }
     public void Restore()
     {
+        using var dpi=new Native.PhysicalDpiScope();
         if(store.State.OriginalAutoArrange==null && store.State.Icons.Count==0) return;
         var desktop=Shell;
         var icons=desktop.ReadIcons();

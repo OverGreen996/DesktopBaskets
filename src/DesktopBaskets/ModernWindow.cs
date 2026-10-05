@@ -57,7 +57,18 @@ internal class ModernWindow : Form
             if(bottom)return left?16:right?17:15;
             if(left)return 10;if(right)return 11;
         }
-        return CaptionRegion.Contains(point)?2:1;
+        if(!CaptionRegion.Contains(point))return 1;
+        // Windows asks the top-level window before dispatching to child buttons.
+        // Returning HTCAPTION here would turn an actual button click into a title
+        // drag and prevent Click from firing. Keep buttons as native client hits.
+        var child=GetChildAtPoint(point,GetChildAtPointSkip.Invisible|GetChildAtPointSkip.Disabled);
+        while(child!=null)
+        {
+            if(child is ButtonBase)return 1;
+            point=new Point(point.X-child.Left,point.Y-child.Top);
+            child=child.GetChildAtPoint(point,GetChildAtPointSkip.Invisible|GetChildAtPointSkip.Disabled);
+        }
+        return 2;
     }
     protected override void WndProc(ref Message m)
     {

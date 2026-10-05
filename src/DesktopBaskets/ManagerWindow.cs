@@ -87,8 +87,13 @@ internal sealed class ManagerWindow : ModernWindow
         };
         entries.ColumnWidthChanged+=(_,_)=>fileHeader.Invalidate();
         entries.DoubleClick+=(_,_)=>{if(entries.SelectedItems.Count>0&&entries.SelectedItems[0].Tag is Entry e)Theme.Try(()=>Theme.Open(e.Path));};
-        entries.KeyDown+=(_,e)=>{if(e.KeyCode==Keys.Delete)RemoveSelected();};
-        entries.MouseUp+=(_,e)=>{if(e.Button==MouseButtons.Right&&Selected is Basket b&&entries.SelectedItems.Count>0&&entries.SelectedItems[0].Tag is Entry item)app.EntryMenu(b,item).Show(entries,e.Location);};
+        entries.KeyDown+=(_,e)=>
+        {
+            if(e.KeyCode==Keys.Delete)RemoveSelected();
+            else if((e.KeyCode==Keys.Apps||(e.KeyCode==Keys.F10&&e.Shift))&&entries.SelectedItems.Count>0&&entries.SelectedItems[0].Tag is Entry item)
+            {app.ShowEntryMenu(item,entries.PointToScreen(entries.SelectedItems[0].Bounds.Location));e.Handled=true;e.SuppressKeyPress=true;}
+        };
+        entries.MouseUp+=(_,e)=>{if(e.Button==MouseButtons.Right&&entries.GetItemAt(e.X,e.Y)?.Tag is Entry item)app.ShowEntryMenu(item,Native.PhysicalCursor);};
         var rightActions=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=56,Padding=new Padding(12,8,0,0)};
         rightActions.Controls.Add(Theme.Button("加入桌面檔案",(_,_)=>{if(Selected is Basket b)app.PickDesktop(b);}));
         rightActions.Controls.Add(Theme.Button("加入外部檔案連結",(_,_)=>PickExternal()));

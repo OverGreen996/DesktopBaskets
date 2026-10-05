@@ -27,7 +27,7 @@ internal static partial class Verification
         var cells=Enumerable.Range(0,3).Select(i=>new Point(first!.Value.X,first.Value.Y+i*spacing.Height)).ToArray();
         string desktop=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         var paths=Enumerable.Range(0,3).Select(i=>Path.Combine(desktop,"DesktopBaskets-refresh-"+Guid.NewGuid().ToString("N")+".txt")).ToArray();
-        App? app=null;bool selectedCleared=false,filled=false,stable=false,restored=false;int relevant=0;string diagnostic="";
+        App? app=null;bool selectedCleared=false,filled=false,stable=false,restored=false,returned=false;int relevant=0;string diagnostic="";
         void Pump(int milliseconds){var watch=Stopwatch.StartNew();while(watch.ElapsedMilliseconds<milliseconds){Application.DoEvents();System.Threading.Thread.Sleep(15);}}
         try
         {
@@ -52,16 +52,36 @@ internal static partial class Verification
                     selectedCleared=index>=0&&!shell.IsSelected(index);
                     using var currentShell=new DesktopShell();
                     diagnostic=$"selectedCleared={selectedCleared}; positions={string.Join(" / ",paths.Select(p=>icons.Single(i=>i.Key==p).Position))}; expected={cells[0]} / {cells[1]}; events={app.DesktopEventsRelevant}/{app.DesktopEventsSeen}; list={shell.List}/{currentShell.List}; alive={shell.Alive}; status={app.Manager.StatusText}; flags={shell.Flags}";
+                    diagnostic+=$"; checks={app.DesktopCheckCount}; physical={string.Join(" / ",Native.PhysicalScreens().Select(s=>s.Bounds))}; assignedBackup={string.Join(" / ",app.Store.State.Icons.Where(i=>i.Key==paths[0]).Select(i=>$"hidden={i.Hidden},last={i.LastX},{i.LastY}"))}; screens={string.Join(" / ",Screen.AllScreens.Select(s=>s.Bounds))}; assigned={app.Store.State.Baskets.Single().Entries.Single().Path==paths[0]}";
                     return selectedCleared&&icons.Single(i=>i.Key==paths[1]).Position==cells[0]&&icons.Single(i=>i.Key==paths[2]).Position==cells[1]
                         &&!area.IntersectsWith(LayoutPlanner.Footprint(icons[index].Position,spacing))&&paths.All(File.Exists);
                 }
                 finally{foreach(var i in icons)i.Dispose();}
             }
-            filled=CheckNative();Require(filled,"Classifying the selected icon did not fill its native cell or clear selection.");
-            for(int n=0;n<3;n++){shell.RefreshView();Pump(900);bool okay=CheckNative();Require(okay,"Explorer refresh left a duplicate, selected hidden item, or unfilled cell: "+diagnostic);}
+            filled=CheckNative();Require(filled,"Classifying the selected icon did not fill its native cell or clear selection: "+diagnostic);
+            for(int n=0;n<3;n++)
+            {
+                shell.RefreshView();Pump(900);bool okay=CheckNative();var settle=Stopwatch.StartNew();
+                while(!okay&&settle.ElapsedMilliseconds<4000){Pump(200);okay=CheckNative();}
+                Require(okay,"Explorer refresh left a duplicate, selected hidden item, or unfilled cell: "+diagnostic);
+            }
             relevant=app.DesktopEventsRelevant;Require(relevant>0,"Native Explorer refresh did not exercise the event hook.");
             Pump(500);int settled=app.DesktopEventsRelevant;Pump(500);stable=settled==app.DesktopEventsRelevant;
             Require(stable,"Desktop event repair did not settle; possible self-triggered loop.");
+            var entry=store.State.Baskets.Single().Entries.Single();
+            var dropPoint=new Point(area.Left+area.Width*3/4+shell.Origin.X,area.Top+area.Height*3/4+shell.Origin.Y);
+            app.ReturnEntryToDesktop(entry.Id,dropPoint);Pump(400);
+            var returnedIcons=shell.ReadIcons();
+            try
+            {
+                var icon=returnedIcons.Single(i=>i.Key==paths[0]);
+                var screen=icon.Position+new Size(shell.Origin);
+                returned=store.State.Baskets.All(b=>b.Entries.All(e=>e.Id!=entry.Id))&&area.Contains(LayoutPlanner.Cell(icon.Position,spacing))
+                    &&!blocked.IntersectsWith(LayoutPlanner.Footprint(icon.Position,spacing))&&Math.Abs(screen.X-dropPoint.X)+Math.Abs(screen.Y-dropPoint.Y)<2*(spacing.Width+spacing.Height)
+                    &&paths.All(p=>File.ReadAllText(p)=="Temporary Desktop Baskets refresh verification.");
+                Require(returned,"Dragging back to desktop did not unassign, display near the drop, or preserve the original file.");
+            }
+            finally{foreach(var i in returnedIcons)i.Dispose();}
         }
         finally
         {
@@ -81,6 +101,7 @@ internal static partial class Verification
         }
         Require(restored,"Native refresh verification did not restore the original desktop layout.");
         return new{Passed=true,VacancyFilledInNativeOrder=filled,NativeSelectionCleared=selectedCleared,ThreeExplorerRefreshesPassed=true,
-            EventDrivenRepair=true,DesktopEventsRelevant=relevant,NoSelfTriggeredEventLoop=stable,OriginalFilePathsUnchanged=true,DesktopPositionsAndFlagsRestored=restored};
+            EventDrivenRepair=true,DesktopEventsRelevant=relevant,NoSelfTriggeredEventLoop=stable,OriginalFilePathsUnchanged=true,
+            DragReturnDisplaysNativeIconNearDrop=returned,DragReturnRemovesVisualMembership=returned,DragReturnPreservesFileContents=returned,DesktopPositionsAndFlagsRestored=restored};
     }
 }

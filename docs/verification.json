@@ -1,10 +1,12 @@
 {
-  "Version": "0.4.5",
+  "Version": "0.4.6",
   "chrome-test": {
     "Passed": true,
     "NoSeparateTitleStrip": true,
     "HeaderMatchesInterfaceBackground": true,
     "VectorCaptionButtons": 3,
+    "CaptionButtonsReceiveNativeClientHits": true,
+    "HeaderCommandButtonsReceiveClientHits": true,
     "NativeDragAndDoubleClickCaption": true,
     "EightResizeDirections": true,
     "MaximizeFitsWorkingArea": true,
@@ -14,11 +16,12 @@
     "MinimizeWorks": true,
     "CloseHidesManagerWithoutRemovingCategories": true,
     "ReopenWorks": true,
+    "RepeatedCategoryMenuCommandsWithoutDisposedException": true,
     "RoundedCornersSupported": true
   },
   "self-test": {
     "Passed": true,
-    "Assertions": 494
+    "Assertions": 498
   },
   "visual-test": {
     "Passed": true,
@@ -57,12 +60,12 @@
   },
   "Installer": {
     "Passed": true,
-    "Version": "0.4.5",
+    "Version": "0.4.6",
     "ProductionSetupRefusesRunningApp": true,
     "PerUserInstallation": true,
     "PayloadFilesHashMatch": true,
     "InstalledFileCount": 9,
-    "InstalledSelfTestAssertions": 494,
+    "InstalledSelfTestAssertions": 498,
     "ReinstallationWorks": true,
     "UninstallRefusesRunningValidationApp": true,
     "UninstallRemovesRegisteredPayload": true,
@@ -95,21 +98,24 @@
     },
     "RetestedOn043": false
   },
-  "VirtualizationLastTestedVersion": "0.4.3",
+  "VirtualizationLastTestedVersion": "0.4.6",
   "refresh-test": {
     "Passed": true,
     "VacancyFilledInNativeOrder": true,
     "NativeSelectionCleared": true,
     "ThreeExplorerRefreshesPassed": true,
     "EventDrivenRepair": true,
-    "DesktopEventsRelevant": 542,
+    "DesktopEventsRelevant": 396,
     "NoSelfTriggeredEventLoop": true,
     "OriginalFilePathsUnchanged": true,
+    "DragReturnDisplaysNativeIconNearDrop": true,
+    "DragReturnRemovesVisualMembership": true,
+    "DragReturnPreservesFileContents": true,
     "DesktopPositionsAndFlagsRestored": true
   },
   "integration-test": {
     "Passed": true,
-    "IconsDisplaced": 54,
+    "IconsDisplaced": 55,
     "DesktopParented": true,
     "IndependentGlassOpacity": true,
     "ForegroundNotDimmedByGlass": true,
@@ -132,11 +138,31 @@
     "Passed": true,
     "DesktopChangeReflow": true,
     "NoContinuousPolling": true,
-    "EventsSeen": 10,
+    "EventsSeen": 3,
     "EventsRelevant": 3,
     "Status": "原始路徑不變  /  格數縮放 · 磁吸對齊 · 框外桌面可正常操作"
   },
-  "standby-probe": {
+  "ChromeLastTestedVersion": "0.4.6",
+  "shell-menu-test": {
+    "Passed": true,
+    "NativeShellMenu": true,
+    "UnicodePath": true,
+    "NativeCopyAndPropertiesVerbs": true,
+    "RepeatedPopupAndDismissCycles": 5,
+    "InteractiveNativePopupLoop": true,
+    "NativeCopyCopiesActualFile": true,
+    "NativeCutKeepsSourceUntilPaste": true,
+    "NativeDeleteRemovesOnlyVerificationFile": true,
+    "DeletedFileRemovedFromBasketCount": true,
+    "OriginalClipboardRestored": true,
+    "NoCustomTakeOutAction": true
+  },
+  "shell-properties-test": {
+    "Passed": true,
+    "NativePropertiesCommandInvoked": true,
+    "SourceFileUnchanged": true
+  },
+  "PreviousVersion045Standby": {
     "Passed": true,
     "AutomaticIdleSeconds": 30,
     "TwoDesktopBasketsCreated": true,
@@ -156,5 +182,55 @@
     "ThreadsNotSuspended": true,
     "WorkingSetTrimmedOnce": true
   },
-  "ChromeLastTestedVersion": "0.4.4"
+  "StandbyCurrentEnvironment": {
+    "Measurement": {
+      "Passed": true,
+      "AutomaticIdleSeconds": 30,
+      "TwoDesktopBasketsCreated": true,
+      "TestWindowsHiddenDuringMeasurement": false,
+      "DesktopBasketsVisibleDuringMeasurement": true,
+      "ItemLinks": 18,
+      "StandbyMaintained": true,
+      "ObservedSeconds": 10.0,
+      "CpuMilliseconds": 1234.375,
+      "CpuSingleCorePercent": 12.342,
+      "StandbyWorkingSetMiB": 30.5,
+      "PrivateCommittedMiB": 67.8,
+      "WakeAndManagerRedrawMilliseconds": 20.2722,
+      "StandbyPaints": 0,
+      "RelevantDesktopEventsDuringMeasurement": 0,
+      "AllExplorerEventsDuringMeasurement": 0,
+      "LayoutChecksDuringMeasurement": 0,
+      "TimerStopsWhileIdle": true,
+      "ThreadsNotSuspended": true,
+      "WorkingSetTrimmedOnce": true
+    },
+    "Version": "0.4.6",
+    "PreviousVersionControl": {
+      "Passed": true,
+      "AutomaticIdleSeconds": 30,
+      "TwoDesktopBasketsCreated": true,
+      "TestWindowsHiddenDuringMeasurement": false,
+      "DesktopBasketsVisibleDuringMeasurement": true,
+      "ItemLinks": 18,
+      "StandbyMaintained": true,
+      "ObservedSeconds": 9.99,
+      "CpuMilliseconds": 1187.5,
+      "CpuSingleCorePercent": 11.888,
+      "StandbyWorkingSetMiB": 25.6,
+      "PrivateCommittedMiB": 67.5,
+      "WakeAndManagerRedrawMilliseconds": 22.148600000000002,
+      "StandbyPaints": 0,
+      "RelevantDesktopEventsDuringMeasurement": 0,
+      "TimerStopsWhileIdle": true,
+      "ThreadsNotSuspended": true,
+      "WorkingSetTrimmedOnce": true
+    },
+    "Note": "本次環境中 CPU 偏高，新版約 12.34%（單核心），同環境舊版約 11.89%。此數值不能宣稱極低待命。新版期間重繪、桌面事件及版面檢查皆為 0，原因尚未確定。",
+    "PreviousVersion": "0.4.5"
+  },
+  "VerificationLimits": {
+    "Note": "拖出驗證包括 OLE 拖曳事件及實際 Explorer 圖示返回落點；未完成端對端滑鼠拖放。原生內容視窗已由 Computer Use 實際確認。",
+    "EndToEndMouseDragVerified": false
+  }
 }

@@ -18,14 +18,14 @@ internal sealed class DesktopEvents : IDisposable
     public int Relevant { get; private set; }
     public DesktopEvents(DesktopShell shell,Action<bool> changed)
     {
-        GetWindowThreadProcessId(shell.List,out uint process);
+        uint desktopThread=GetWindowThreadProcessId(shell.List,out uint process);
         callback=(_,evt,hwnd,obj,child,_,_)=>
         {
             Seen++;
             if(hwnd==shell.List||hwnd==shell.Host||IsChild(shell.List,hwnd)){Relevant++;changed(evt==0x8004);}
         };
-        hook=SetWinEventHook(0x8000,0x800C,IntPtr.Zero,callback,process,0,2); // WINEVENT_SKIPOWNPROCESS
-        interactionHook=SetWinEventHook(8,15,IntPtr.Zero,callback,process,0,2); // capture/drag end, no mouse-move hook
+        hook=SetWinEventHook(0x8000,0x800C,IntPtr.Zero,callback,process,desktopThread,2); // desktop thread only / WINEVENT_SKIPOWNPROCESS
+        interactionHook=SetWinEventHook(8,15,IntPtr.Zero,callback,process,desktopThread,2); // capture/drag end, no mouse-move hook
         if(hook==IntPtr.Zero)throw new InvalidOperationException("無法監聽桌面變動。請暫停桌面整理後重試。");
         try{shellChanges=new ShellChangeWindow(()=>{Seen++;Relevant++;changed(true);});}
         catch{UnhookWinEvent(hook);if(interactionHook!=IntPtr.Zero)UnhookWinEvent(interactionHook);throw;}
