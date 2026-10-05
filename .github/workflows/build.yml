@@ -23,6 +23,7 @@ jobs:
         run: |
           $report = Join-Path $env:RUNNER_TEMP 'self-test.json'
           $process = Start-Process -FilePath './build/stage/DesktopBaskets.exe' -ArgumentList @('--self-test','--work',$env:RUNNER_TEMP,'--report',$report) -Wait -PassThru -WindowStyle Hidden
+          if (Test-Path $report) { Get-Content $report }
           if ($process.ExitCode -ne 0 -or !(Get-Content $report -Raw | ConvertFrom-Json).Passed) { throw 'Self-test failed.' }
       - uses: actions/upload-artifact@v4
         with:
