@@ -32,6 +32,8 @@ internal static class Program
             if(args.Contains("--shell-menu-test")){Write(report,Verification.ShellMenuTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--context-routing-test")){Write(report,Verification.ContextRoutingTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--selection-test")){Write(report,Verification.SelectionTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--lock-test")){Write(report,Verification.LockTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--lock-ui-test")){Write(report,Verification.LockUiTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--selection-ui-test")){Write(report,Verification.BasketMenuUiTest(Value(args,"--work")??AppContext.BaseDirectory,true));return 0;}
             if(args.Contains("--isolated-shell-menu-test")){Write(report,Verification.IsolatedShellMenuTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--shell-properties-test")){Write(report,Verification.ShellPropertiesTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}

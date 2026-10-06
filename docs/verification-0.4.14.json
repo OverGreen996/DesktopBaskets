@@ -1,0 +1,39 @@
+{
+  "Version": "0.4.14",
+  "VerifiedDate": "2026-10-06",
+  "Lock": {
+    "Passed": true,
+    "CompactAndWide": true,
+    "LockCircleAndTextClicks": 8,
+    "GlassInputTogglesExactlyOnce": true,
+    "LockedFrameHasDefaultCursor": true,
+    "OnlyLockControlHasHandCursor": true,
+    "MoveAndResizeBlocked": true,
+    "UnlockRestoresResizeCursor": true,
+    "StandbyPreservesLockAndClickWakes": true,
+    "StatePersists": true,
+    "OutsideReleaseCancels": true
+  },
+  "Mouse": {
+    "Passed": true,
+    "RealMouse": true,
+    "RealBasketAndGlass": true,
+    "TextAndCircleLockClicks": 3,
+    "LockedHeaderAndCornerDragsKeepBounds": true,
+    "LockedFrameDragCursorsDefault": true,
+    "FilesStillSelectable": true,
+    "SourceUnchanged": true,
+    "Scope": "Independent host using real basket controls"
+  },
+  "LocalUpgrade": {
+    "Version": "0.4.14",
+    "InstallerExitCode": 0,
+    "StateUnchanged": true,
+    "MatchesPayload": true
+  },
+  "SelfTestAssertions": 498,
+  "SelectionPassed": true,
+  "VirtualizationPassed": true,
+  "ContextRoutingPassed": true,
+  "AddedIdlePolling": false
+}

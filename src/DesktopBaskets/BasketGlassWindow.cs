@@ -14,6 +14,7 @@ internal sealed class BasketGlassWindow : Form
     public int NativeVisibilityChanges {get;private set;}
     public int PaintCount {get;private set;}
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hwnd,int message,IntPtr wParam,IntPtr lParam);
+    [DllImport("user32.dll")] static extern IntPtr SetCursor(IntPtr cursor);
     public BasketGlassWindow(App app,BasketWindow foreground)
     {
         this.app=app;this.foreground=foreground;
@@ -67,9 +68,14 @@ internal sealed class BasketGlassWindow : Form
         // Its default context request must never reach the Explorer parent.
         if(m.Msg==0x7B){m.Result=IntPtr.Zero;return;}
         if(m.Msg==0x18)NativeVisibilityChanges++;
+        if(m.Msg==0x20&&foreground!=null&&!foreground.IsDisposed)
+        {
+            // Cursor feedback must remain correct even while hover drawing is
+            // suspended in standby; changing a cursor does not wake the app.
+            SetCursor(foreground.PointerTarget(Cursor.Position).Cursor.Handle);m.Result=new IntPtr(1);return;
+        }
         if(foreground!=null&&!foreground.IsDisposed&&m.Msg>=0x200&&m.Msg<=0x20E)
         {
-            if(m.Msg==0x200&&m.WParam==IntPtr.Zero&&app.IsStandby){m.Result=IntPtr.Zero;return;}
             if(m.Msg!=0x200||m.WParam.ToInt64()!=0)app.Wake();
             // Read the coordinates of this message, not the latest cursor.
             // Queued mouse input can be dispatched after the pointer has already
@@ -79,6 +85,7 @@ internal sealed class BasketGlassWindow : Form
             bool wheel=m.Msg==0x20A||m.Msg==0x20E;
             var screenPoint=wheel?location:PointToScreen(location);
             var target=foreground.PointerTarget(screenPoint);
+            if(m.Msg==0x200&&m.WParam==IntPtr.Zero&&app.IsStandby){Cursor=target.Cursor;m.Result=IntPtr.Zero;return;}
             IntPtr point=m.LParam;
             if(!wheel)
             {

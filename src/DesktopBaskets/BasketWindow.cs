@@ -19,8 +19,9 @@ internal sealed class BasketWindow : Form
     readonly Panel footer=new ArtPanel(){Dock=DockStyle.Bottom,Height=Grid.Footer};
     public int FrameOrdinal=>Math.Max(1,app.Store.State.Baskets.IndexOf(Basket)+1);
     public int ObjectCount=>Basket.Entries.Count;
-    public string FrameStatus=>app.IsStandby?"STANDBY":Basket.Locked?"LOCKED":"READY";
+    public string FrameStatus=>Basket.Locked?"LOCKED":app.IsStandby?"STANDBY":"READY";
     readonly Button lockButton,menuButton;
+    readonly Control[] captureTargets;
     readonly ToolTip help=new();
     bool suppressMenuClick;
     Point dragStart;
@@ -42,14 +43,15 @@ internal sealed class BasketWindow : Form
         AllowDrop=true; items.BackColor=Theme.Panel;items.TabStop=true;
         items.MouseDown+=(_,_)=>items.Focus();
         header.BackColor=Theme.Panel;header.Paint+=(_,e)=>PaintHeader(e.Graphics);
-        lockButton=new LockButton(()=>basket.Locked){AccessibleName="鎖定位置與大小",Size=new Size(18,18),Margin=new Padding(0),FlatStyle=FlatStyle.Flat,BackColor=Theme.Panel,ForeColor=Theme.Text,Cursor=Cursors.Hand};
+        lockButton=new LockButton(()=>basket.Locked,()=>FrameStatus,()=>Grid.Compact(Width)){AccessibleName="鎖定位置與大小",Size=new Size(18,18),Margin=new Padding(0),FlatStyle=FlatStyle.Flat,BackColor=Theme.Panel,ForeColor=Theme.Text,Cursor=Cursors.Hand};
         lockButton.FlatAppearance.BorderSize=0;lockButton.Click+=(_,_)=>app.ToggleLock(basket);
         menuButton=new FrameMenuButton{AccessibleName="分類選單",FlatStyle=FlatStyle.Flat,Cursor=Cursors.Hand};
         menuButton.FlatAppearance.BorderSize=0;menuButton.Click+=(_,_)=>{if(suppressMenuClick){suppressMenuClick=false;return;}app.BasketMenu(basket).Show(Cursor.Position);};
+        captureTargets=new Control[]{lockButton,menuButton,items,header,footer,this};
         help.SetToolTip(menuButton,"分類選單：改名、鎖定、加入檔案");help.SetToolTip(lockButton,"點擊鎖定或解鎖位置與大小");help.SetToolTip(header,"拖曳標頭移動；雙擊改名；拖曳邊緣按格數縮放");
         help.SetToolTip(footer,"拖曳右下十字按格數縮放；鎖定時停用");
         header.Controls.Add(lockButton);header.Controls.Add(menuButton);header.Resize+=(_,_)=>LayoutChrome();
-        header.MouseDoubleClick+=(_,e)=>{if(e.Button==MouseButtons.Left)app.EditBasket(Basket);};
+        header.MouseDoubleClick+=(_,e)=>{if(e.Button==MouseButtons.Left&&!Basket.Locked)app.EditBasket(Basket);};
         footer.Paint+=(_,e)=>{ChromePaintCount++;FrameArt.ReferenceFooter(e.Graphics,footer.Width,footer.Height,FrameOrdinal,app.Store.State.Revision,app.Store.State.ModifiedUtc,Basket.Columns,Basket.Rows,Basket.Locked);};
         header.MouseDown+=(_,e)=>{if(ResizeAt(PointToClient(Cursor.Position))==Edge.None)StartDrag(e,false);};
         KeyPreview=true; KeyDown+=(_,e)=>{if(e.KeyCode==Keys.Escape)CancelDrag();};
@@ -57,7 +59,7 @@ internal sealed class BasketWindow : Form
         foreach(var surface in new Control[]{this,header,footer,items,menuButton})
         {
             surface.MouseDown+=(_,e)=>{var edge=ResizeAt(PointToClient(Cursor.Position));if(e.Button==MouseButtons.Left&&edge!=Edge.None){resizeEdge=edge;StartDrag(e,true,surface);}};
-            surface.MouseMove+=(_,e)=>{if(moving||resizing)MoveDrag(e);else UpdateResizeCursor(surface);};
+            surface.MouseMove+=(_,e)=>{if(moving||resizing)MoveDrag(e);else UpdateResizeCursor(surface,surface.PointToScreen(e.Location));};
             surface.MouseUp+=(_,_)=>EndDrag();surface.MouseCaptureChanged+=(_,_)=>CancelLostCapture();
         }
         SizeChanged+=(_,_)=>LayoutChrome();LayoutChrome();
@@ -88,11 +90,14 @@ internal sealed class BasketWindow : Form
     public void RefreshItems()
     {
         if(Basket.Locked)CancelDrag();
-        items.RefreshItems();LayoutChrome();header.Cursor=Basket.Locked?Cursors.Default:Cursors.SizeAll; header.Invalidate(true);footer.Invalidate();
+        items.RefreshItems();LayoutChrome();header.Cursor=Basket.Locked?Cursors.Default:Cursors.SizeAll;
+        Cursor=footer.Cursor=items.Cursor=Cursors.Default;menuButton.Cursor=Basket.Locked?Cursors.Default:Cursors.Hand;
+        if(glass!=null)glass.Cursor=Cursors.Default;
+        header.Invalidate(true);footer.Invalidate();
         AccessibleName=$"分類 {FrameOrdinal:00}：{Basket.Name}";AccessibleDescription=$"{ObjectCount} 個圖示；{FrameStatus}；{Basket.Columns} × {Basket.Rows} 格；原始路徑不變";
-        help.SetToolTip(header,Basket.Name+"\n拖曳標頭移動；雙擊改名；拖曳邊緣按格數縮放");
+        help.SetToolTip(header,Basket.Name+(Basket.Locked?"\n位置與大小已鎖定；點擊 LOCK 解鎖":"\n拖曳標頭移動；雙擊改名；拖曳邊緣按格數縮放"));
     }
-    public void RefreshStatus(){header.Invalidate();footer.Invalidate();}
+    public void RefreshStatus(){header.Invalidate(true);footer.Invalidate();}
     void PaintHeader(Graphics g)
     {
         ChromePaintCount++;
@@ -106,7 +111,7 @@ internal sealed class BasketWindow : Form
         float s=header.Width/1537f,t=header.Height/102f;
         int flagWidth=Grid.Compact(Width)?(int)Math.Round(header.Height*63.0/102):Math.Max(13,header.Width-(int)(1474*s));
         menuButton.Bounds=new Rectangle(header.Width-flagWidth,0,flagWidth,header.Height);
-        lockButton.Bounds=Grid.Compact(Width)?new Rectangle(header.Width-176,54,14,14):new Rectangle(header.Width-215,(int)(60*t),16,16);
+        lockButton.Bounds=Grid.Compact(Width)?new Rectangle(header.Width-176,52,176-flagWidth,20):new Rectangle(header.Width-215,(int)(60*t),215-flagWidth,22);
     }
     public void ScrollBy(int rows)
     {
@@ -137,6 +142,10 @@ internal sealed class BasketWindow : Form
     }
     public Control PointerTarget(Point screenPoint)
     {
+        // A press owns its move/release sequence even across transparent
+        // sibling surfaces or outside the original target's rectangle.
+        foreach(var control in captureTargets)
+            if(control.Capture)return control;
         var p=PointToClient(screenPoint);
         if(header.Bounds.Contains(p))
         {
@@ -168,13 +177,13 @@ internal sealed class BasketWindow : Form
         Edge edge=Edge.None;if(p.X<margin)edge|=Edge.Left;else if(p.X>=Width-margin)edge|=Edge.Right;
         if(p.Y<margin)edge|=Edge.Top;else if(p.Y>=Height-margin)edge|=Edge.Bottom;return edge;
     }
-    void UpdateResizeCursor(Control surface)
+    void UpdateResizeCursor(Control surface,Point screenPoint)
     {
-        var edge=ResizeAt(PointToClient(Cursor.Position));
+        var edge=ResizeAt(PointToClient(screenPoint));
         if(edge!=Edge.None)surface.Cursor=CursorForEdge(edge)!;
         else if(surface==header)surface.Cursor=Basket.Locked?Cursors.Default:Cursors.SizeAll;
         else if(surface==footer||surface==this)surface.Cursor=Cursors.Default;
-        else if(surface==menuButton)surface.Cursor=Cursors.Hand;
+        else if(surface==menuButton)surface.Cursor=Basket.Locked?Cursors.Default:Cursors.Hand;
     }
     static Cursor? CursorForEdge(Edge edge)=>edge==Edge.None?null:edge is Edge.Left or Edge.Right?Cursors.SizeWE:edge is Edge.Top or Edge.Bottom?Cursors.SizeNS:
         edge==(Edge.Left|Edge.Top)||edge==(Edge.Right|Edge.Bottom)?Cursors.SizeNWSE:Cursors.SizeNESW;
@@ -217,13 +226,35 @@ internal sealed class BasketWindow : Form
     protected override void Dispose(bool disposing) { if(disposing){CancelDrag();help.Dispose();glass?.Dispose();}base.Dispose(disposing); }
     sealed class LockButton : Button
     {
-        readonly Func<bool> locked;public LockButton(Func<bool> locked){this.locked=locked;}
+        readonly Func<bool> locked,compact;readonly Func<string> status;bool pressed;
+        public LockButton(Func<bool> locked,Func<string> status,Func<bool> compact){this.locked=locked;this.status=status;this.compact=compact;}
+        protected override void WndProc(ref Message m)
+        {
+            if(m.Msg is 0x201 or 0x203 or 0x202)
+            {
+                long packed=m.LParam.ToInt64();var point=new Point(unchecked((short)(packed&0xffff)),unchecked((short)((packed>>16)&0xffff)));
+                if(m.Msg!=0x202){pressed=Enabled&&ClientRectangle.Contains(point);if(pressed){Focus();Capture=true;}}
+                else
+                {
+                    bool click=pressed&&Enabled&&ClientRectangle.Contains(point);pressed=false;Capture=false;
+                    // Color-key foreground and glass share this target. Use
+                    // the delivered release position instead of checking the
+                    // native window under the latest physical cursor.
+                    if(click)PerformClick();
+                }
+                m.Result=IntPtr.Zero;return;
+            }
+            base.WndProc(ref m);
+        }
+        protected override void OnMouseCaptureChanged(EventArgs e){if(!Capture)pressed=false;base.OnMouseCaptureChanged(e);}
         protected override void OnPaint(PaintEventArgs e)
         {
-            e.Graphics.Clear(Theme.Panel);FrameArt.Prepare(e.Graphics);bool state=locked();using var signal=new SolidBrush(Theme.Accent);e.Graphics.FillEllipse(signal,1,1,Width-2,Height-2);
+            e.Graphics.Clear(Theme.Panel);FrameArt.Prepare(e.Graphics);bool state=locked();int y=compact()?2:1;
+            using var signal=new SolidBrush(Theme.Accent);e.Graphics.FillEllipse(signal,0,y,14,14);
+            FrameArt.Tracked(e.Graphics,"STATUS : "+status(),22,y+1,12,compact()?.2f:1.2f,Theme.Text);
             if(state)
             {
-                using var pen=new Pen(Theme.Background,1);float s=Math.Min(Width,Height)/18f;e.Graphics.ScaleTransform(s,s);
+                using var pen=new Pen(Theme.Background,1);e.Graphics.TranslateTransform(0,y);e.Graphics.ScaleTransform(14/18f,14/18f);
                 e.Graphics.DrawRectangle(pen,5,8,8,6);e.Graphics.DrawArc(pen,6,2,6,10,180,180);e.Graphics.DrawLine(pen,9,10,9,12);
             }
             AccessibleDescription=state?"已鎖定位置與大小；點擊解鎖":"未鎖定；點擊固定位置與大小";
