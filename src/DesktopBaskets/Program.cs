@@ -281,6 +281,31 @@ internal static partial class Verification
                 buttons[1].PerformClick();Application.DoEvents();
                 Require(manager.Bounds==original,"Repeated maximize/minimize/restore changes window geometry");
             }
+            // Real ButtonBase mouse clicks raise Click before releasing
+            // capture. PerformClick alone never exercised that Windows path.
+            void ClickBeforeMouseRelease(CaptionButton button)
+            {
+                var before=manager.WindowState;
+                try
+                {
+                    button.Capture=true;Require(button.Capture,"Caption capture setup failed");
+                    button.PerformClick();
+                    Require(manager.WindowState==before,"Caption command ran inside the captured mouse-up handler");
+                }
+                finally{button.Capture=false;}
+                Application.DoEvents();
+            }
+            for(int cycle=0;cycle<3;cycle++)
+            {
+                ClickBeforeMouseRelease(buttons[1]);
+                Require(manager.WindowState==FormWindowState.Maximized,"Captured mouse click could not maximize after release");
+                ClickBeforeMouseRelease(buttons[0]);
+                Require(manager.WindowState==FormWindowState.Minimized,"Captured mouse click could not minimize after release");
+                manager.CaptionCommand(0xF120);Application.DoEvents();
+                Require(manager.WindowState==FormWindowState.Maximized,"Captured minimize forgot the maximized restore state");
+                ClickBeforeMouseRelease(buttons[1]);
+                Require(manager.WindowState==FormWindowState.Normal&&manager.Bounds==original,"Captured mouse click could not restore original bounds");
+            }
             manager.Size=manager.MinimumSize;Application.DoEvents();
             Require(buttons.All(b=>header.ClientRectangle.Contains(b.Bounds)),"Caption controls clipped at the smallest manager size");
             CheckCaptionMouseHits();
@@ -299,7 +324,7 @@ internal static partial class Verification
                 Require(category.Locked!=locked,"Category menu click did not dispatch after close.");
                 Require(menu.IsDisposed,"Closed category menu was not disposed after dispatch.");
             }
-            return new{Passed=true,NoSeparateTitleStrip=true,HeaderMatchesInterfaceBackground=true,VectorCaptionButtons=3,CaptionButtonsReceiveNativeClientHits=true,HeaderCommandButtonsReceiveClientHits=true,NativeDragAndDoubleClickCaption=true,EightResizeDirections=true,MaximizeFitsWorkingArea=true,RestorePreservesBounds=true,RepeatedWindowStateTransitions=true,MinimumManagerCaptionControlsVisible=true,MinimizeWorks=true,CloseHidesManagerWithoutRemovingCategories=true,ReopenWorks=true,RepeatedCategoryMenuCommandsWithoutDisposedException=true,manager.RoundedCornersSupported};
+            return new{Passed=true,NoSeparateTitleStrip=true,HeaderMatchesInterfaceBackground=true,VectorCaptionButtons=3,CaptionButtonsReceiveNativeClientHits=true,HeaderCommandButtonsReceiveClientHits=true,CaptionCommandsAfterMouseCaptureReleased=true,CapturedMaximizeMinimizeRestoreCycles=3,NativeDragAndDoubleClickCaption=true,EightResizeDirections=true,MaximizeFitsWorkingArea=true,RestorePreservesBounds=true,RepeatedWindowStateTransitions=true,MinimumManagerCaptionControlsVisible=true,MinimizeWorks=true,CloseHidesManagerWithoutRemovingCategories=true,ReopenWorks=true,RepeatedCategoryMenuCommandsWithoutDisposedException=true,manager.RoundedCornersSupported};
         }
         finally{app.Quit();}
     }

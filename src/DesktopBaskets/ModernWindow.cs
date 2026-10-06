@@ -147,7 +147,13 @@ internal sealed class CaptionButton : Button
         AccessibleName=action==CaptionAction.Minimize?"最小化":action==CaptionAction.Maximize?"最大化／還原":"關閉管理視窗（保留桌面分類）";
         AccessibleRole=AccessibleRole.PushButton;TabStop=true;
         SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
-        Click+=(_,_)=>PerformCaptionAction();
+        Click+=(_,_)=>
+        {
+            // ButtonBase raises Click while the mouse-up handler still owns
+            // capture. Windows ignores SC_MINIMIZE / SC_MAXIMIZE during that
+            // capture; dispatch after the button finishes releasing it.
+            window.BeginInvoke(new Action(()=>{if(!window.IsDisposed)PerformCaptionAction();}));
+        };
     }
     public void PerformCaptionAction()
     {
