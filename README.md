@@ -1,6 +1,10 @@
+<h1 align="center">Desktop Baskets</h1>
+
 <p align="center">
-  <img src="docs/images/hero.svg" alt="Desktop Baskets：整理桌面，檔案留在原位" width="100%">
+  <a href="docs/images/desktop-demo.jpg"><img src="docs/images/desktop-demo.jpg" alt="桌面使用示範：右側排列遊戲、工作、工具三個真實籃框，保留桌布與桌面空間" width="100%"></a>
 </p>
+
+<p align="center"><sub>重新搭建的示範桌面，實際執行 0.4.14 籃框後截圖。使用另製桌布與示範檔案；點圖可看 1920 × 1080 原尺寸。</sub></p>
 
 <p align="center">
   <strong>你的桌面，就是你的工作區。</strong><br>
@@ -31,6 +35,20 @@
 </p>
 
 ## 介面預覽
+
+### 桌面上的整理方式
+
+上方展示把三個分類排在桌面右側，保留左側桌布與日常操作空間。每個框的名稱、編號、項目數、LOCK 狀態與格數，均由實際籃框讀取資料顯示。
+
+| 籃框 | 示範內容 | 實際項目數 |
+| :--- | :--- | :---: |
+| **01 · 遊戲** | 六個另製圖示與示範捷徑 | 6 |
+| **02 · 工作** | 專案、素材、計畫、筆記與待辦 | 5 |
+| **03 · 工具** | 系統工具捷徑與工具箱資料夾 | 8 |
+
+展示在獨立的示範桌面視窗中拍攝：桌布、桌面背景與工作列為示範場景，籃框使用未修改的正式版控制項；不包含個人桌面截圖。
+
+### 框內操作：框選與多選
 
 <p align="center">
   <img src="docs/images/selection.png" alt="籃框內框選六個檔案：即時選取框、多選狀態、真實項目數與切角邊框" width="100%">
