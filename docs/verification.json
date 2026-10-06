@@ -1,40 +1,44 @@
 {
-  "Version": "0.4.14",
+  "Version": "0.4.15",
   "VerifiedDate": "2026-10-06",
-  "Lock": {
+  "Checks": {
+    "chrome-test": true,
+    "lock-test": true,
+    "context-routing-test": true,
+    "selection-test": true,
+    "self-test": true
+  },
+  "WindowChrome": {
     "Passed": true,
-    "CompactAndWide": true,
-    "LockCircleAndTextClicks": 8,
-    "GlassInputTogglesExactlyOnce": true,
-    "LockedFrameHasDefaultCursor": true,
-    "OnlyLockControlHasHandCursor": true,
-    "MoveAndResizeBlocked": true,
-    "UnlockRestoresResizeCursor": true,
-    "StandbyPreservesLockAndClickWakes": true,
-    "StatePersists": true,
-    "OutsideReleaseCancels": true
+    "NoSeparateTitleStrip": true,
+    "HeaderMatchesInterfaceBackground": true,
+    "VectorCaptionButtons": 3,
+    "CaptionButtonsReceiveNativeClientHits": true,
+    "HeaderCommandButtonsReceiveClientHits": true,
+    "CaptionCommandsAfterMouseCaptureReleased": true,
+    "CapturedMaximizeMinimizeRestoreCycles": 3,
+    "NativeDragAndDoubleClickCaption": true,
+    "EightResizeDirections": true,
+    "MaximizeFitsWorkingArea": true,
+    "RestorePreservesBounds": true,
+    "RepeatedWindowStateTransitions": true,
+    "MinimumManagerCaptionControlsVisible": true,
+    "MinimizeWorks": true,
+    "CloseHidesManagerWithoutRemovingCategories": true,
+    "ReopenWorks": true,
+    "RepeatedCategoryMenuCommandsWithoutDisposedException": true,
+    "RoundedCornersSupported": true
   },
-  "Mouse": {
-    "Passed": true,
-    "RealMouse": true,
-    "RealBasketAndGlass": true,
-    "TextAndCircleLockClicks": 3,
-    "LockedHeaderAndCornerDragsKeepBounds": true,
-    "LockedFrameDragCursorsDefault": true,
-    "FilesStillSelectable": true,
-    "SourceUnchanged": true,
-    "Scope": "Independent host using real basket controls"
+  "InstalledMouse": {
+    "Minimize": true,
+    "Maximize": true,
+    "MinimizeObservation": "Computer Use: window is minimized",
+    "Restore": true,
+    "ReopenAfterMinimize": true
   },
-  "LocalUpgrade": {
-    "Version": "0.4.14",
-    "InstallerExitCode": 0,
-    "StateUnchanged": true,
-    "MatchesPayload": true
-  },
-  "SelfTestAssertions": 498,
-  "SelectionPassed": true,
-  "VirtualizationPassed": true,
-  "ContextRoutingPassed": true,
+  "InstalledVersion": "0.4.15",
+  "InstallerPreservedState": true,
+  "BasketMembershipAndGeometryPreserved": true,
   "AddedIdlePolling": false,
-  "HistoricalVerification": "verification-0.4.13.json"
+  "HistoricalVerification": "verification-0.4.14.json"
 }

@@ -15,12 +15,12 @@
   <img src="https://img.shields.io/badge/Windows-x64-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="Windows x64">
   <img src="https://img.shields.io/badge/.NET_Framework-4.8-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt=".NET Framework 4.8">
   <img src="https://img.shields.io/badge/UI-Native_WinForms-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt="原生 WinForms 介面">
-  <img src="https://img.shields.io/badge/Release-0.4.14-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.4.14">
+  <img src="https://img.shields.io/badge/Release-0.4.15-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.4.15">
 </p>
 
 <p align="center">
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.14/DesktopBaskets-Setup-0.4.14-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.14/DesktopBaskets-Portable-0.4.14-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.15/DesktopBaskets-Setup-0.4.15-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.15/DesktopBaskets-Portable-0.4.15-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
 </p>
 
 <p align="center">
@@ -96,6 +96,12 @@ Desktop Baskets 是 Windows 原生桌面分類工具。以《明日方舟：終�
 | **即時資料** | 編號、檔案數、狀態、格數、版本與修訂日期都有實際用途。 |
 | **低資源待命** | 30 秒無操作進入微待命，以事件喚醒；沒有持續動畫或桌面輪詢。 |
 
+### 0.4.15 更新：視窗按鈕恢復正常
+
+管理介面的 **最小化、最大化與還原** 現在可以正常用滑鼠操作。修正按鈕仍擷取滑鼠時，Windows 忽略視窗指令的問題；指令會在放開事件完成後執行。
+
+正式安裝版已逐一點擊驗證最大化、還原、最小化與重新開啟。回歸測試加入滑鼠擷取情境，連續三輪切換狀態，確認還原大小與最大化後的最小化狀態正確。
+
 ### 0.4.14 更新：LOCK 真正固定工作區
 
 | 模組 | 本次更新 |
@@ -111,7 +117,7 @@ Desktop Baskets 是 Windows 原生桌面分類工具。以《明日方舟：終�
 
 ## 開始使用
 
-1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.14-x64.exe**。
+1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.15-x64.exe**。
 2. 執行安裝程式。預設只安裝到目前 Windows 帳號，不需要系統管理員權限。
 3. 從開始功能表開啟 **Desktop Baskets**，新增「遊戲」、「工作」、「雜項」等分類。
 4. 把桌面項目拖進框內，雙擊即可開啟。
@@ -167,11 +173,12 @@ Desktop Baskets 是 Windows 原生桌面分類工具。以《明日方舟：終�
 | LOCK 滑鼠（0.4.14） | 實際點擊文字與鎖頭三次；鎖定後拖標頭與右下角，位置／尺寸不變，框邊游標為一般箭頭，檔案仍可選取。 |
 | 框選滑鼠（0.4.12） | 真實籃框與玻璃底板的框選、兩個項目一起跨籃拖曳、Ctrl+A、Esc，以及原生內容顯示「2 個檔案」。 |
 | 原生右鍵 | 本版右鍵訊息路由檢查通過。0.4.12 的多選深色選單曾保持開啟約 28.8 秒後正常執行內容命令。 |
-| 本機更新 | 0.4.14 升級安裝驗證成功，安裝過程沒有改動分類設定。 |
+| 視窗按鈕（0.4.15） | 正式安裝版的最小化、最大化、還原與重新開啟通過滑鼠點擊驗證；滑鼠擷取情境的三輪狀態切換通過回歸測試。 |
+| 本機更新 | 0.4.15 升級安裝驗證成功，分類、檔案歸屬與籃框位置保留。 |
 
-滑鼠驗證使用實際籃框控制項與示範檔案，宿主為獨立測試視窗；工具無法直接選取 Explorer 下的個人桌面子視窗。拖回桌面的驗證結合拖曳事件與 Explorer 圖示返回落點，尚未完成端對端滑鼠拖回桌面的測試。
+籃框滑鼠驗證使用實際籃框控制項與示範檔案，宿主為獨立測試視窗；工具無法直接選取 Explorer 下的個人桌面子視窗。0.4.15 視窗按鈕另在正式安裝的管理介面實測。拖回桌面的驗證結合拖曳事件與 Explorer 圖示返回落點，尚未完成端對端滑鼠拖回桌面的測試。
 
-**資源數據的限制：** 0.4.5 曾量得待命工作集約 10.5 MiB、CPU 約 0.156%（單核心）；0.4.6 在另一輪環境量得約 12.34%，偏高原因尚未確定。0.4.14 尚未重做完整待命效能量測，因此不宣稱固定記憶體用量或極低 CPU。歷史數據與各版驗證範圍保留於 [驗證紀錄](docs/verification.json)。
+**資源數據的限制：** 0.4.5 曾量得待命工作集約 10.5 MiB、CPU 約 0.156%（單核心）；0.4.6 在另一輪環境量得約 12.34%，偏高原因尚未確定。0.4.15 尚未重做完整待命效能量測，因此不宣稱固定記憶體用量或極低 CPU。歷史數據與各版驗證範圍保留於 [驗證紀錄](docs/verification.json)。
 
 </details>
 

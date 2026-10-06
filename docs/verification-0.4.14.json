@@ -35,5 +35,6 @@
   "SelectionPassed": true,
   "VirtualizationPassed": true,
   "ContextRoutingPassed": true,
-  "AddedIdlePolling": false
+  "AddedIdlePolling": false,
+  "HistoricalVerification": "verification-0.4.13.json"
 }
