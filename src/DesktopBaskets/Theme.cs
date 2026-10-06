@@ -5,6 +5,24 @@ namespace DesktopBaskets;
 
 internal static class Theme
 {
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)] delegate int PreferredAppMode(int mode);
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)] delegate void FlushMenuThemes();
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern IntPtr GetModuleHandle(string name);
+    [DllImport("kernel32.dll")] static extern IntPtr GetProcAddress(IntPtr module,IntPtr ordinal);
+    public static bool NativeDarkMenus {get;private set;}
+    public static void ConfigureNativeMenus()
+    {
+        // Windows 10 1903+ only: the ordinal had a different signature on 1809.
+        // PowerToys ZoomIt uses these same private UXTheme exports. Resolve them
+        // defensively and keep the native menu functional when unavailable.
+        var version=Environment.OSVersion.Version;
+        if(version.Major<10||version.Build<18362||SystemInformation.HighContrast)return;
+        var module=GetModuleHandle("uxtheme.dll");if(module==IntPtr.Zero)return;
+        var mode=GetProcAddress(module,new IntPtr(135));var flush=GetProcAddress(module,new IntPtr(136));
+        if(mode==IntPtr.Zero||flush==IntPtr.Zero)return;
+        Marshal.GetDelegateForFunctionPointer<PreferredAppMode>(mode)(2);
+        Marshal.GetDelegateForFunctionPointer<FlushMenuThemes>(flush)();NativeDarkMenus=true;
+    }
     public static readonly Color Background=Color.FromArgb(25,25,25);
     public static readonly Color Panel=Color.FromArgb(24,26,27);
     public static readonly Color Raised=Color.FromArgb(53,55,60);

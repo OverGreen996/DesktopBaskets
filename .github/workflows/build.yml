@@ -18,13 +18,15 @@ jobs:
       - name: Build portable app
         shell: pwsh
         run: ./scripts/build.ps1
-      - name: Run layout and path-preservation checks
+      - name: Run layout, selection and context-routing checks
         shell: pwsh
         run: |
-          $report = Join-Path $env:RUNNER_TEMP 'self-test.json'
-          $process = Start-Process -FilePath './build/stage/DesktopBaskets.exe' -ArgumentList @('--self-test','--work',$env:RUNNER_TEMP,'--report',$report) -Wait -PassThru -WindowStyle Hidden
-          if (Test-Path $report) { Get-Content $report }
-          if ($process.ExitCode -ne 0 -or !(Get-Content $report -Raw | ConvertFrom-Json).Passed) { throw 'Self-test failed.' }
+          foreach ($check in @('self-test','selection-test','context-routing-test')) {
+            $report = Join-Path $env:RUNNER_TEMP ($check+'.json')
+            $process = Start-Process -FilePath './build/stage/DesktopBaskets.exe' -ArgumentList @(('--'+$check),'--work',('"'+$env:RUNNER_TEMP+'"'),'--report',('"'+$report+'"')) -Wait -PassThru -WindowStyle Hidden
+            if (Test-Path $report) { Get-Content $report }
+            if ($process.ExitCode -ne 0 -or !(Test-Path $report) -or !(Get-Content $report -Raw | ConvertFrom-Json).Passed) { throw ($check+' failed.') }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: DesktopBaskets-Windows-x64

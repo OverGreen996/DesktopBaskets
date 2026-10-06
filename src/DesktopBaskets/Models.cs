@@ -7,6 +7,21 @@ public sealed class Entry
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "";
     public string Path { get; set; } = "";
+    string? displayName,displaySourceName,displaySourcePath;
+    [Newtonsoft.Json.JsonIgnore] public string DisplayName
+    {
+        get
+        {
+            if(displayName!=null&&displaySourceName==Name&&displaySourcePath==Path)return displayName;
+            displaySourceName=Name;displaySourcePath=Path;displayName=Name;
+            string extension=System.IO.Path.GetExtension(Path);
+            // Cache only the label. Shell operations continue using the full path.
+            if(new[]{".lnk",".url",".website",".appref-ms"}.Contains(extension,StringComparer.OrdinalIgnoreCase)
+                &&Name.EndsWith(extension,StringComparison.OrdinalIgnoreCase)&&!Directory.Exists(Path))
+                displayName=Name.Substring(0,Name.Length-extension.Length);
+            return displayName;
+        }
+    }
     public string? OriginalPath { get; set; }
     public string? Pending { get; set; }
     [Newtonsoft.Json.JsonIgnore] public bool Managed => false;

@@ -76,12 +76,13 @@ internal sealed class BasketWindow : Form
     internal void OnDragEnter(object? sender,DragEventArgs e)
     {
         app.Wake();
-        if(e.Data?.GetDataPresent("DesktopBaskets.Entry")==true)e.Effect=(e.AllowedEffect&DragDropEffects.Move)!=0?DragDropEffects.Move:DragDropEffects.Link;
+        if(e.Data?.GetDataPresent("DesktopBaskets.Entries")==true||e.Data?.GetDataPresent("DesktopBaskets.Entry")==true)e.Effect=(e.AllowedEffect&DragDropEffects.Move)!=0?DragDropEffects.Move:DragDropEffects.Link;
         else if(e.Data?.GetDataPresent(DataFormats.FileDrop)==true)e.Effect=(e.AllowedEffect&DragDropEffects.Link)!=0?DragDropEffects.Link:DragDropEffects.Copy;
     }
     internal void OnDrop(object? sender,DragEventArgs e)
     {
-        if(e.Data?.GetData("DesktopBaskets.Entry") is string id)app.TransferEntry(Basket,id);
+        if(e.Data?.GetData("DesktopBaskets.Entries") is string[] ids)app.TransferEntries(Basket,ids);
+        else if(e.Data?.GetData("DesktopBaskets.Entry") is string id)app.TransferEntry(Basket,id);
         else if(e.Data?.GetData(DataFormats.FileDrop) is string[] paths)app.AddPaths(Basket,paths);
     }
     public void RefreshItems()
@@ -111,25 +112,26 @@ internal sealed class BasketWindow : Form
     {
         items.ScrollBy(rows);
     }
-    public void Attach(DesktopShell shell)
+    public void Attach(DesktopShell shell)=>AttachToHost(shell.Host);
+    internal void AttachToHost(IntPtr host)
     {
         var hwnd=Handle;
-        bool reattach=attachedHandle!=hwnd||attachedHost!=shell.Host||Native.GetParent(hwnd)!=shell.Host;
+        bool reattach=attachedHandle!=hwnd||attachedHost!=host||Native.GetParent(hwnd)!=host;
         if(reattach)
         {
             long style=Native.GetWindowLongPtr(hwnd,-16).ToInt64();
             Native.SetWindowLongPtr(hwnd,-16,new IntPtr((style&~0x80000000L)|0x40000000L));
-            Native.SetParent(hwnd,shell.Host);
-            if(Native.GetParent(hwnd)!=shell.Host)throw new InvalidOperationException("無法把整理籃附加到桌面，這個分類尚未顯示。");
+            Native.SetParent(hwnd,host);
+            if(Native.GetParent(hwnd)!=host)throw new InvalidOperationException("無法把整理籃附加到桌面，這個分類尚未顯示。");
             Native.SetWindowLongPtr(hwnd,-20,new IntPtr(Native.GetWindowLongPtr(hwnd,-20).ToInt64()|0x80000));
             if(!Native.SetLayeredWindowAttributes(hwnd,TransparentKey,255,1))throw new InvalidOperationException("Windows 無法設定整理框的清晰前景。");
         }
-        var p=new Native.POINT(new Point(Basket.X,Basket.Y));Native.ScreenToClient(shell.Host,ref p);
+        var p=new Native.POINT(new Point(Basket.X,Basket.Y));Native.ScreenToClient(host,ref p);
         var bounds=new Rectangle(p.X,p.Y,Basket.Width,Basket.Collapsed?Grid.HeaderFor(Basket.Width):Basket.Height);
         if(reattach||attachedBounds!=bounds)
             if(!Native.SetWindowPos(hwnd,IntPtr.Zero,bounds.X,bounds.Y,bounds.Width,bounds.Height,0x10|(reattach?0x20u:0)))throw new InvalidOperationException("Windows 無法設定整理籃位置。");
-        attachedHandle=hwnd;attachedHost=shell.Host;attachedBounds=bounds;
-        glass.Attach(shell);
+        attachedHandle=hwnd;attachedHost=host;attachedBounds=bounds;
+        glass.AttachToHost(host);
         items.Visible=!Basket.Collapsed;footer.Visible=!Basket.Collapsed;
         items.RefreshItems();
     }
@@ -153,6 +155,9 @@ internal sealed class BasketWindow : Form
     }
     protected override void WndProc(ref Message m)
     {
+        // Stop context requests from header/footer controls at the basket,
+        // whose native parent belongs to Explorer rather than this process.
+        if(m.Msg==0x7B){m.Result=IntPtr.Zero;return;}
         if(m.Msg==0x18)NativeVisibilityChanges++;
         base.WndProc(ref m);
     }

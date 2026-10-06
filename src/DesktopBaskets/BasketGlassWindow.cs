@@ -23,17 +23,18 @@ internal sealed class BasketGlassWindow : Form
         AccessibleName=foreground.Basket.Name+"的玻璃底板";
         DragEnter+=foreground.OnDragEnter;DragDrop+=foreground.OnDrop;
     }
-    public void Attach(DesktopShell shell)
+    public void Attach(DesktopShell shell)=>AttachToHost(shell.Host);
+    internal void AttachToHost(IntPtr host)
     {
         var hwnd=Handle;
-        bool reattach=attachedHandle!=hwnd||attachedHost!=shell.Host||Native.GetParent(hwnd)!=shell.Host;
+        bool reattach=attachedHandle!=hwnd||attachedHost!=host||Native.GetParent(hwnd)!=host;
         if(reattach)
         {
-            Native.SetParent(hwnd,shell.Host);
-            if(Native.GetParent(hwnd)!=shell.Host)throw new InvalidOperationException("無法附加桌面玻璃底板。");
+            Native.SetParent(hwnd,host);
+            if(Native.GetParent(hwnd)!=host)throw new InvalidOperationException("無法附加桌面玻璃底板。");
             Native.SetWindowLongPtr(hwnd,-20,new IntPtr(Native.GetWindowLongPtr(hwnd,-20).ToInt64()|0x80000|0x08000000));
         }
-        var bounds=foreground.Basket.ScreenBounds;var p=new Native.POINT(bounds.Location);Native.ScreenToClient(shell.Host,ref p);
+        var bounds=foreground.Basket.ScreenBounds;var p=new Native.POINT(bounds.Location);Native.ScreenToClient(host,ref p);
         var clientBounds=new Rectangle(p.X,p.Y,bounds.Width,bounds.Height);
         if(reattach||attachedBounds!=clientBounds)
         {
@@ -42,7 +43,7 @@ internal sealed class BasketGlassWindow : Form
         }
         if(reattach||attachedOpacity!=foreground.Basket.OpacityPercent)
             if(!Native.SetLayeredWindowAttributes(hwnd,0,(byte)(foreground.Basket.OpacityPercent*255/100),2))throw new InvalidOperationException("無法設定玻璃底板的透明度。");
-        attachedHandle=hwnd;attachedHost=shell.Host;attachedBounds=clientBounds;attachedOpacity=foreground.Basket.OpacityPercent;
+        attachedHandle=hwnd;attachedHost=host;attachedBounds=clientBounds;attachedOpacity=foreground.Basket.OpacityPercent;
     }
     public void ShowBehind()
     {
@@ -62,16 +63,26 @@ internal sealed class BasketGlassWindow : Form
     protected override void OnPaint(PaintEventArgs e){PaintCount++;PaintGlass(e.Graphics,ClientRectangle);base.OnPaint(e);}
     protected override void WndProc(ref Message m)
     {
+        // Right-button input is forwarded to the foreground exactly once.
+        // Its default context request must never reach the Explorer parent.
+        if(m.Msg==0x7B){m.Result=IntPtr.Zero;return;}
         if(m.Msg==0x18)NativeVisibilityChanges++;
         if(foreground!=null&&!foreground.IsDisposed&&m.Msg>=0x200&&m.Msg<=0x20E)
         {
             if(m.Msg==0x200&&m.WParam==IntPtr.Zero&&app.IsStandby){m.Result=IntPtr.Zero;return;}
             if(m.Msg!=0x200||m.WParam.ToInt64()!=0)app.Wake();
-            var target=foreground.PointerTarget(Cursor.Position);
+            // Read the coordinates of this message, not the latest cursor.
+            // Queued mouse input can be dispatched after the pointer has already
+            // reached the end of a fast drag; using Cursor.Position loses its start.
+            long packed=m.LParam.ToInt64();
+            var location=new Point(unchecked((short)(packed&0xffff)),unchecked((short)((packed>>16)&0xffff)));
+            bool wheel=m.Msg==0x20A||m.Msg==0x20E;
+            var screenPoint=wheel?location:PointToScreen(location);
+            var target=foreground.PointerTarget(screenPoint);
             IntPtr point=m.LParam;
-            if(m.Msg!=0x20A&&m.Msg!=0x20E)
+            if(!wheel)
             {
-                var p=target.PointToClient(Cursor.Position);point=new IntPtr((p.X&0xffff)|((p.Y&0xffff)<<16));
+                var p=target.PointToClient(screenPoint);point=new IntPtr((p.X&0xffff)|((p.Y&0xffff)<<16));
             }
             m.Result=SendMessage(target.Handle,m.Msg,m.WParam,point);Cursor=target.Cursor;return;
         }

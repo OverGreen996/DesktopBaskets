@@ -9,6 +9,7 @@ internal static class Program
     static int Main(string[] args)
     {
         Application.EnableVisualStyles();
+        Theme.ConfigureNativeMenus();
         Application.SetCompatibleTextRenderingDefault(false);
         string? report=Value(args,"--report");
         try
@@ -29,7 +30,12 @@ internal static class Program
             if(args.Contains("--virtual-test")){Write(report,Verification.VirtualTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--chrome-test")){Write(report,Verification.ChromeTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--shell-menu-test")){Write(report,Verification.ShellMenuTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--context-routing-test")){Write(report,Verification.ContextRoutingTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--selection-test")){Write(report,Verification.SelectionTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--selection-ui-test")){Write(report,Verification.BasketMenuUiTest(Value(args,"--work")??AppContext.BaseDirectory,true));return 0;}
+            if(args.Contains("--isolated-shell-menu-test")){Write(report,Verification.IsolatedShellMenuTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--shell-properties-test")){Write(report,Verification.ShellPropertiesTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--basket-menu-ui-test")){Write(report,Verification.BasketMenuUiTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--ui-demo")){Verification.Preview(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"));return 0;}
             using var mutex=new Mutex(true,"Local\\DesktopBaskets_"+Environment.UserName,out bool created);
             if(!created){MessageBox.Show("桌面整理工具已在執行。請從右下角系統匣開啟分類管理。","Desktop Baskets");return 0;}
@@ -554,6 +560,12 @@ internal static partial class Verification
             Require(top.R>220&&top.G>220&&top.B<50&&right.R>220&&right.G>220&&right.B<50,"Yellow flag failed to touch the actual top/right window edges");
         }
         Capture("reference-frame-preview.png");
+        // Documentation uses the real viewport and demonstration files only.
+        var selectionStart=frame.Viewport.ItemBounds(0).Location+new Size(1,1);
+        var selectionEnd=frame.Viewport.ItemBounds(5);var selectionPoint=new Point(selectionEnd.Right-2,selectionEnd.Bottom-2);
+        frame.Viewport.HandlePointerDown(selectionStart,MouseButtons.Left,Keys.None);
+        frame.Viewport.UpdateMarquee(selectionPoint);Capture("selection-frame-preview.png");
+        Key(frame.Viewport,Keys.Escape);
         foreach(var spec in new[]{(columns:17,rows:5,name:"medium-frame-preview.png"),(columns:20,rows:6,name:"wide-frame-preview.png")})
         {
             basket.Width=spec.columns*Grid.CellWidth+Grid.Side;basket.Height=spec.rows*Grid.CellHeight+Grid.VerticalFor(basket.Width);frame.Size=basket.ScreenBounds.Size;frame.RefreshItems();Application.DoEvents();Capture(spec.name);

@@ -22,6 +22,8 @@ internal sealed class App : ApplicationContext
     internal int DesktopCheckCount {get;private set;}
     public int VisualPaintCount=>windows.Values.Sum(w=>w.ChromePaintCount+w.GlassPaintCount+w.Viewport.PaintCount);
     bool applying,quitting,desktopRefreshed;
+    bool fileMenuPending,fileMenuOpen;
+    internal Action<object>? FileMenuObserved;
     bool hideVerificationWindows;
     internal void HideVerificationWindows(){hideVerificationWindows=true;foreach(var w in windows.Values)w.Hide();Manager.Hide();}
     public App(Store store,bool smoke=false)
@@ -62,7 +64,7 @@ internal sealed class App : ApplicationContext
     public void EnterStandby()
     {
         idle.Stop();if(IsStandby||quitting)return;
-        if(applying){idle.Start();return;}
+        if(applying||fileMenuOpen||fileMenuPending||windows.Values.Any(w=>w.Viewport.IsSelecting)){idle.Start();return;}
         IsStandby=true;Icons.Clear();
         foreach(var window in windows.Values)window.RefreshStatus();
         tray.Text="Desktop Baskets · 微待命";
@@ -160,8 +162,11 @@ internal sealed class App : ApplicationContext
         if(errors.Count>0)Theme.Error(new IOException(string.Join("\n",errors)));
     }
     public void RemoveEntry(Basket basket,Entry entry)
+        =>RemoveEntries(basket,new[]{entry});
+    public void RemoveEntries(Basket basket,IEnumerable<Entry> entries)
     {
-        Theme.Try(()=>{Store.Remove(basket,entry);if(Store.State.Enabled)ApplyLayout();Refresh(basket.Id);});
+        var ids=new HashSet<string>(entries.Select(e=>e.Id));if(ids.Count==0)return;
+        Theme.Try(()=>{basket.Entries.RemoveAll(e=>ids.Contains(e.Id));Store.Save();if(Store.State.Enabled)ApplyLayout();Refresh(basket.Id);});
     }
     public bool CanReturnToDesktop(Entry entry)=>new[]{Store.DesktopRoot,Store.PublicDesktopRoot}
         .Any(root=>string.Equals(Path.GetDirectoryName(entry.Path),root.TrimEnd(Path.DirectorySeparatorChar),StringComparison.OrdinalIgnoreCase));
@@ -173,34 +178,76 @@ internal sealed class App : ApplicationContext
         return target==shell.List||target==shell.Host||Native.IsChild(shell.List,target);
     }
     public void ReturnEntryToDesktop(string id,Point point)
+        =>ReturnEntriesToDesktop(new[]{id},point);
+    public void ReturnEntriesToDesktop(IEnumerable<string> ids,Point point)
     {
-        var owner=Store.State.Baskets.FirstOrDefault(b=>b.Entries.Any(e=>e.Id==id));
-        var entry=owner?.Entries.FirstOrDefault(e=>e.Id==id);
-        if(owner==null||entry==null||!CanReturnToDesktop(entry)||!Store.State.Enabled)return;
-        int index=owner.Entries.IndexOf(entry);owner.Entries.RemoveAt(index);
-        try{ApplyLayout(false,new Dictionary<string,Point>{{entry.Path,point}});Store.Save();Refresh(owner.Id);}
-        catch(Exception ex){owner.Entries.Insert(index,entry);RecoverLayout();Store.Save();Refresh(owner.Id);Theme.Error(ex);}
+        var chosen=new HashSet<string>(ids);
+        var entries=Store.State.Baskets.SelectMany(b=>b.Entries).Where(e=>chosen.Contains(e.Id)).ToArray();
+        if(entries.Length==0||entries.Any(e=>!CanReturnToDesktop(e))||!Store.State.Enabled)return;
+        var backups=Store.State.Baskets.ToDictionary(b=>b,b=>b.Entries.ToArray());
+        foreach(var basket in Store.State.Baskets)basket.Entries.RemoveAll(e=>chosen.Contains(e.Id));
+        var positions=new Dictionary<string,Point>(StringComparer.OrdinalIgnoreCase);
+        for(int i=0;i<entries.Length;i++)positions[entries[i].Path]=new Point(point.X,point.Y+i*Grid.CellHeight);
+        try{ApplyLayout(false,positions);Store.Save();Refresh();}
+        catch(Exception ex){foreach(var backup in backups){backup.Key.Entries.Clear();backup.Key.Entries.AddRange(backup.Value);}RecoverLayout();Store.Save();Refresh();Theme.Error(ex);}
     }
     public void TransferEntry(Basket target,string id)
+        =>TransferEntries(target,new[]{id});
+    public void TransferEntries(Basket target,IEnumerable<string> ids)
     {
-        var entry=Store.State.Baskets.SelectMany(b=>b.Entries).FirstOrDefault(e=>e.Id==id);
-        if(entry!=null)Theme.Try(()=>{Store.Transfer(target,entry);Refresh(target.Id);});
+        var chosen=new HashSet<string>(ids);
+        var entries=Store.State.Baskets.Where(b=>b!=target).SelectMany(b=>b.Entries).Where(e=>chosen.Contains(e.Id)).ToArray();
+        if(entries.Length==0)return;
+        var movingIds=new HashSet<string>(entries.Select(e=>e.Id));
+        Theme.Try(()=>{foreach(var basket in Store.State.Baskets)basket.Entries.RemoveAll(e=>movingIds.Contains(e.Id));target.Entries.AddRange(entries);Store.Save();Refresh(target.Id);});
     }
     public void ShowEntryMenu(Entry entry,Point screenPoint)
+        =>ShowEntriesMenu(new[]{entry},screenPoint);
+    public void ShowEntriesMenu(IEnumerable<Entry> selection,Point screenPoint)
     {
-        Theme.Try(()=>
+        var entries=selection.GroupBy(e=>e.Id).Select(g=>g.First()).ToArray();if(entries.Length==0)return;
+        if(fileMenuPending||fileMenuOpen||quitting||Manager.IsDisposed)return;
+        fileMenuPending=true;var modifiers=Control.ModifierKeys;
+        // Finish the originating mouse-up (including glass forwarding and capture
+        // cleanup) before starting the native menu's nested message loop.
+        Manager.BeginInvoke(new Action(()=>
         {
-            if(!Store.Exists(entry.Path)){RefreshMissingEntries(entry);return;}
-            var modifiers=Control.ModifierKeys;
-            using(var menu=new ShellContextMenu(entry.Path,Manager.Handle,(modifiers&Keys.Shift)!=0))menu.Show(screenPoint,Manager.Handle,modifiers);
-            RefreshMissingEntries(entry);
-        });
+            fileMenuPending=false;if(quitting||Manager.IsDisposed)return;
+            var existing=entries.Where(e=>Store.Exists(e.Path)).ToArray();
+            if(existing.Length!=entries.Length)RefreshMissingSelection(entries);
+            if(existing.Length==0)return;
+            fileMenuOpen=true;idle.Stop();debounce.Stop();
+            var owner=Manager.Handle;
+            ShellContextMenu.ShowOnUiThread(existing.Select(e=>e.Path),screenPoint,owner,modifiers,(observation,error)=>
+            {
+                if(quitting||Manager.IsDisposed)return;
+                try{Manager.BeginInvoke(new Action(()=>
+                {
+                    if(quitting)return;
+                    try
+                    {
+                        FileMenuObserved?.Invoke(observation);
+                        // Bounded local diagnostics contain menu timings and HWND/thread
+                        // lifecycle only, never filenames or file contents.
+                        try{var log=Path.Combine(Store.Root,"native-menu-diagnostics.jsonl");
+                            if(File.Exists(log)&&new FileInfo(log).Length>65536)File.WriteAllText(log,"");
+                            File.AppendAllText(log,JsonCodec.Serialize(new{Utc=DateTimeOffset.UtcNow,Menu=observation})+Environment.NewLine);}catch{}
+                        if(error!=null)Theme.Error(error);
+                        RefreshMissingSelection(entries);
+                    }
+                    finally{fileMenuOpen=false;Wake();ScheduleCheck();}
+                }));}catch(InvalidOperationException){ /* UI shutdown already completed. */ }
+            });
+        }));
     }
     internal void RefreshMissingEntries(Entry? menuEntry=null)
+        =>RefreshMissingSelection(menuEntry==null?Array.Empty<Entry>():new[]{menuEntry});
+    internal void RefreshMissingSelection(IEnumerable<Entry> entries)
     {
+        var ids=new HashSet<string>(entries.Select(e=>e.Id));
         bool changed=false;
         foreach(var basket in Store.State.Baskets)
-            changed|=basket.Entries.RemoveAll(e=>(e==menuEntry||CanReturnToDesktop(e))&&!Store.Exists(e.Path))>0;
+            changed|=basket.Entries.RemoveAll(e=>(ids.Contains(e.Id)||CanReturnToDesktop(e))&&!Store.Exists(e.Path))>0;
         if(changed){Store.Save();Refresh();}
     }
     public ContextMenuStrip BasketMenu(Basket basket)
@@ -300,6 +347,7 @@ internal sealed class App : ApplicationContext
         DesktopCheckCount++;
         using var dpi=new Native.PhysicalDpiScope();
         if(!Store.State.Enabled||applying)return;
+        if(fileMenuOpen||fileMenuPending)return; // Completion schedules one deferred check.
         try
         {
             if(!layout.Shell.IconsVisible){foreach(var w in windows.Values)w.Hide();return;}

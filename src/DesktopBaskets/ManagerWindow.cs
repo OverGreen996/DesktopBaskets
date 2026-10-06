@@ -139,7 +139,7 @@ internal sealed class ManagerWindow : ModernWindow
             detail.Text=b.Name+"  /  "+b.Entries.Count+" 個項目\n"+$"{b.Columns} × {b.Rows} 格  ·  玻璃底色 {b.OpacityPercent}%  ·  "+(b.Locked?"位置與大小已鎖定":"雙擊框標題可改名");
             foreach(var entry in b.Entries)
             {
-                var item=new ListViewItem(entry.Name){Tag=entry};
+                var item=new ListViewItem(entry.DisplayName){Tag=entry};
                 item.SubItems.Add("原位分類");item.SubItems.Add(entry.Path);entries.Items.Add(item);
             }
         }
