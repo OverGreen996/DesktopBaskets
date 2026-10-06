@@ -1,150 +1,40 @@
 {
-  "Version": "0.4.13",
+  "Version": "0.4.14",
   "VerifiedDate": "2026-10-06",
-  "self-test": {
+  "Lock": {
     "Passed": true,
-    "Assertions": 498
+    "CompactAndWide": true,
+    "LockCircleAndTextClicks": 8,
+    "GlassInputTogglesExactlyOnce": true,
+    "LockedFrameHasDefaultCursor": true,
+    "OnlyLockControlHasHandCursor": true,
+    "MoveAndResizeBlocked": true,
+    "UnlockRestoresResizeCursor": true,
+    "StandbyPreservesLockAndClickWakes": true,
+    "StatePersists": true,
+    "OutsideReleaseCancels": true
   },
-  "selection-test": {
+  "Mouse": {
     "Passed": true,
-    "RubberBandBothDirections": true,
-    "CtrlToggle": true,
-    "ShiftRange": true,
-    "SelectAllIncludesOffscreen": true,
-    "ScrolledSelection": true,
-    "ScrollDuringSelection": true,
-    "EscapeAndLostCaptureRelease": true,
-    "SelectionSurvivesRefreshById": true,
-    "MultiFileBasketDrop": true,
-    "NativeMultiFileCopySameAndDifferentFolders": true,
-    "OriginalPathsAndContentsUnchanged": true,
-    "AccessibilityMultiSelection": true,
-    "RealGlassUsesMessageCoordinates": true
-  },
-  "context-routing-test": {
-    "Passed": true,
-    "RealBasketControls": true,
-    "MouseAndKeyboardContextMessagesConsumed": true,
-    "RightButtonReleaseConsumed": true,
-    "DesktopParentContextMessages": 0
-  },
-  "visual-test": {
-    "Passed": true,
-    "ActualObjectCount": 14,
-    "TransferUpdatesCount": true,
-    "SequentialFrameOrdinals": true,
-    "DeleteReindexesFrames": true,
-    "LiveStandbyAndLockLabels": true,
-    "DisplayFont": "Russo One",
-    "NativeFontRegistered": true,
-    "NativeUIText": true,
-    "MetadataMinimumPixels": 12,
-    "VectorAntialiasing": true,
-    "MinimumColumns": 5,
-    "MinimumRows": 1,
-    "MinimumWidth": 476,
-    "MinimumHeight": 250,
-    "FlagFlushTopAndRight": true,
-    "SevenSmallGridSizesVerified": true,
-    "HalfSizeOverflowScroll": true,
-    "ThreeNativeSizesVerified": true
-  },
-  "virtual-test": {
-    "Passed": true,
-    "FileCount": 1000,
-    "PerFileControls": 0,
-    "IconCacheUpperBound": 64,
-    "ObservedCachedIcons": 64,
-    "OverflowScroll": true,
-    "LockBlocksMoveResizeCollapse": true,
-    "LockedBasketStillScrolls": true,
-    "UnlockRestoresResizeHandles": true,
-    "ContentInsideFrame": true,
-    "PartialScrollDoesNotPaintOnFrame": true,
-    "BottomRightCrossResizes": true
-  },
-  "chrome-test": {
-    "Passed": true,
-    "NoSeparateTitleStrip": true,
-    "HeaderMatchesInterfaceBackground": true,
-    "VectorCaptionButtons": 3,
-    "CaptionButtonsReceiveNativeClientHits": true,
-    "HeaderCommandButtonsReceiveClientHits": true,
-    "NativeDragAndDoubleClickCaption": true,
-    "EightResizeDirections": true,
-    "MaximizeFitsWorkingArea": true,
-    "RestorePreservesBounds": true,
-    "RepeatedWindowStateTransitions": true,
-    "MinimumManagerCaptionControlsVisible": true,
-    "MinimizeWorks": true,
-    "CloseHidesManagerWithoutRemovingCategories": true,
-    "ReopenWorks": true,
-    "RepeatedCategoryMenuCommandsWithoutDisposedException": true,
-    "RoundedCornersSupported": true
-  },
-  "NativeCommandsLastTested": {
-    "Version": "0.4.12",
-    "Result": {
-      "Passed": true,
-      "NativeShellMenu": true,
-      "UnicodePath": true,
-      "NativeCopyAndPropertiesVerbs": true,
-      "RepeatedPopupAndDismissCycles": 5,
-      "InteractiveNativePopupLoop": true,
-      "NativeCopyCopiesActualFile": true,
-      "NativeCutKeepsSourceUntilPaste": true,
-      "NativeDeleteRemovesOnlyVerificationFile": true,
-      "DeletedFileRemovedFromBasketCount": true,
-      "OriginalClipboardRestored": true,
-      "NoCustomTakeOutAction": true
-    }
-  },
-  "MouseVerification": {
-    "RealBasketViewport": true,
-    "NativePropertiesShowTwoFiles": true,
-    "PersonalExplorerChildWindowsNotDirectlyTargetable": true,
-    "NativeDarkMultiMenuSeconds": 28.776,
-    "OriginalPathsUnchanged": true,
-    "Host": "Independent test window using actual basket controls",
-    "DesktopDragOutEndToEndMouseTest": false,
-    "CtrlAAndEscape": true,
-    "Version": "0.4.12",
-    "NativeMultiMenuSelectionCount": 2,
-    "SelectedFiles": 2,
-    "LayeredGlassMessageCoordinates": true,
-    "MultiFileBasketTransfer": true
-  },
-  "ShortcutLabels": {
-    "BasketLabelsVerifiedVisually": true,
-    "InstalledManagerLabelsVerifiedVisually": true,
-    "OriginalNamesAndPathsPreserved": true,
-    "Version": "0.4.13",
-    "HiddenExtensions": [
-      ".lnk",
-      ".url",
-      ".website",
-      ".appref-ms"
-    ]
+    "RealMouse": true,
+    "RealBasketAndGlass": true,
+    "TextAndCircleLockClicks": 3,
+    "LockedHeaderAndCornerDragsKeepBounds": true,
+    "LockedFrameDragCursorsDefault": true,
+    "FilesStillSelectable": true,
+    "SourceUnchanged": true,
+    "Scope": "Independent host using real basket controls"
   },
   "LocalUpgrade": {
+    "Version": "0.4.14",
     "InstallerExitCode": 0,
-    "Version": "0.4.13",
     "StateUnchanged": true,
     "MatchesPayload": true
   },
-  "ReleaseBuild": {
-    "BuildErrors": 0,
-    "PortableBuilt": true,
-    "ReadmePreviewUsesDemonstrationDataOnly": true,
-    "InstallerCompiled": true,
-    "BuildWarnings": 0,
-    "Version": "0.4.13"
-  },
-  "Performance": {
-    "AddedIdlePolling": false,
-    "Note": "Historical measurements vary by environment; no fixed memory or ultra-low CPU guarantee.",
-    "CompleteStandbyBenchmarkRepeated": false,
-    "Version": "0.4.13"
-  },
-  "HistoricalVerification": "verification-0.4.7.json"
+  "SelfTestAssertions": 498,
+  "SelectionPassed": true,
+  "VirtualizationPassed": true,
+  "ContextRoutingPassed": true,
+  "AddedIdlePolling": false,
+  "HistoricalVerification": "verification-0.4.13.json"
 }

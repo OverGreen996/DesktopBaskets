@@ -18,7 +18,7 @@ jobs:
       - name: Build portable app
         shell: pwsh
         run: ./scripts/build.ps1
-      - name: Run layout, selection and context-routing checks
+      - name: Run layout, selection, context-routing and lock checks
         shell: pwsh
         run: |
           foreach ($check in @('self-test','selection-test','context-routing-test','lock-test')) {
