@@ -5,6 +5,7 @@ internal sealed class App : ApplicationContext
     public Store Store { get; }
     public IconCache Icons { get; }=new();
     public ManagerWindow Manager { get; }
+    internal StartupSettings Startup { get; }
     readonly DesktopLayout layout;
     readonly Dictionary<string,BasketWindow> windows=new();
     internal IReadOnlyCollection<BasketWindow> DesktopWindows=>windows.Values;
@@ -26,11 +27,13 @@ internal sealed class App : ApplicationContext
     internal Action<object>? FileMenuObserved;
     bool hideVerificationWindows;
     internal void HideVerificationWindows(){hideVerificationWindows=true;foreach(var w in windows.Values)w.Hide();Manager.Hide();}
-    public App(Store store,bool smoke=false)
+    public App(Store store,bool smoke=false,bool autoStart=false,StartupSettings? startup=null)
     {
-        Store=store;layout=new DesktopLayout(store);Manager=new ManagerWindow(this);
+        Store=store;Startup=startup??new StartupSettings();layout=new DesktopLayout(store);Manager=new ManagerWindow(this);
         Icons.ImageReady+=path=>{foreach(var window in windows.Values)if(!window.IsDisposed)window.Viewport.RefreshImage(path);};
         Theme.ErrorOwner=Manager;
+        // Upgrade the installer's older command to the explicit login mode.
+        if(!smoke&&Startup.Enabled)Theme.Try(()=>Startup.SetEnabled(true));
         wakeFilter=new WakeFilter(this);Application.AddMessageFilter(wakeFilter);
         MainForm=Manager;
         var menu=new ContextMenuStrip();
@@ -43,14 +46,25 @@ internal sealed class App : ApplicationContext
         debounce.Tick+=(_,_)=>{debounce.Stop();CheckDesktop();};
         idle.Tick+=(_,_)=>EnterStandby();idle.Start();
         if(!smoke)WatchDesktop();
-        Manager.Show();
+        if(autoStart)_=Manager.Handle;else Manager.Show();
         if(!smoke)
         {
             try {layout.Restore();} // recover interrupted session before establishing a new one
-            catch(Exception ex){Store.State.Enabled=false;Store.Save();Manager.SetStatus("上次的桌面位置還原失敗，備份仍保留。",true);Theme.Error(ex);}
-            if(Store.State.Enabled)Theme.Try(()=>ApplyLayout());
+            catch(Exception ex){Store.State.Enabled=false;Store.Save();ShowManager();Manager.SetStatus("上次的桌面位置還原失敗，備份仍保留。",true);Theme.Error(ex);}
+            if(Store.State.Enabled)try{ApplyLayout();}catch(Exception ex){ShowManager();Manager.SetStatus("籃框開啟失敗，設定與原始檔案保留。",true);Theme.Error(ex);}
             else Manager.SetStatus("準備就緒 · 新增分類會自動放上桌面。關閉管理視窗後可從系統匣開啟。");
         }
+    }
+    internal void SetAutoStart(bool enabled)
+    {
+        Wake();
+        try
+        {
+            Startup.SetEnabled(enabled);
+            Manager.SetStatus(enabled?"已設定 · 登入 Windows 後自動啟動並開啟籃子，管理視窗留在系統匣。":"已關閉登入自動啟動 · 目前的籃子仍保持原狀。");
+        }
+        catch(Exception ex){Manager.SetStatus("無法更新登入啟動設定："+ex.Message,true);Theme.Error(ex);}
+        finally{Manager.RefreshStartup();}
     }
     public void ShowManager(){Wake();Manager.Show();if(Manager.WindowState!=FormWindowState.Normal)Manager.CaptionCommand(0xF120);Manager.Activate();}
     public void Wake()

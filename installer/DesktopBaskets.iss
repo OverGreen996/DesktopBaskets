@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.4.17"
+  #define AppVersion "0.4.18"
 #endif
 #ifndef PayloadDir
   #define PayloadDir "..\build\stage"
@@ -57,12 +57,12 @@ chinesetraditional.UninstallAppRunningError=Desktop Baskets 正在執行。%n%n�
 
 [CustomMessages]
 chinesetraditional.DesktopShortcut=建立桌面捷徑
-chinesetraditional.Autostart=登入 Windows 時啟動
+chinesetraditional.Autostart=登入 Windows 後自動啟動並開啟籃子
 chinesetraditional.Launch=開啟 Desktop Baskets
 chinesetraditional.CloseFirst=請先在 Desktop Baskets 選「退出並還原圖示」，再執行安裝或解除安裝。你的分類設定與原始檔案會保留。
 chinesetraditional.NeedFramework=需要 .NET Framework 4.8 或更新版本。請先從 Microsoft 安裝此元件：https://dotnet.microsoft.com/download/dotnet-framework/net48
 english.DesktopShortcut=Create a desktop shortcut
-english.Autostart=Start when signing in to Windows
+english.Autostart=Start and restore baskets when signing in to Windows
 english.Launch=Launch Desktop Baskets
 english.CloseFirst=Choose Exit and restore icons in Desktop Baskets before installing or uninstalling. Your settings and original files are preserved.
 english.NeedFramework=.NET Framework 4.8 or later is required. Install it from Microsoft: https://dotnet.microsoft.com/download/dotnet-framework/net48
@@ -78,7 +78,7 @@ Name: "{group}\解除安裝 Desktop Baskets"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Desktop Baskets"; Filename: "{app}\DesktopBaskets.exe"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "DesktopBaskets"; ValueData: """{app}\DesktopBaskets.exe"""; Tasks: autostart; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "DesktopBaskets"; ValueData: """{app}\DesktopBaskets.exe"" --autostart"; Tasks: autostart; Flags: uninsdeletevalue
 
 [Run]
 Filename: "{app}\DesktopBaskets.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
@@ -123,3 +123,11 @@ function InitializeUninstall: Boolean;
 begin
   Result := CheckRunning(UninstallSilent);
 end;
+
+#ifndef BuildValidation
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'DesktopBaskets');
+end;
+#endif

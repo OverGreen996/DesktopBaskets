@@ -10,6 +10,9 @@ internal sealed class ManagerWindow : ModernWindow
     readonly Label status=new(){Dock=DockStyle.Bottom,Height=50,Padding=new Padding(20,10,20,10)};
     readonly Label detail=new(){Dock=DockStyle.Top,Height=76,Padding=new Padding(16,12,16,8)};
     readonly Button toggle;
+    readonly CheckBox autoStart=new(){Text="登入 Windows 後自動啟動並開啟籃子",AutoSize=true,ForeColor=Theme.Text,Cursor=Cursors.Hand,AccessibleName="登入 Windows 後自動啟動並開啟籃子"};
+    bool loadingStartup;
+    internal CheckBox StartupControl=>autoStart;
     bool loading;
     public Basket? Selected => baskets.SelectedItem as Basket;
     public bool Exiting { get; set; }
@@ -71,6 +74,14 @@ internal sealed class ManagerWindow : ModernWindow
         leftActions.Controls.Add(Theme.Button("移除分類",(_,_)=>{if(Selected is Basket b)app.DeleteBasket(b);}));
         leftActions.Controls.Add(Theme.Button("開啟設定資料夾",(_,_)=>Theme.Try(()=>Theme.Open(app.Store.Root))));
         left.Controls.Add(baskets);left.Controls.Add(leftActions);
+        var startupPanel=new Panel{Dock=DockStyle.Bottom,Height=82,Padding=new Padding(0,8,0,0)};
+        autoStart.Location=new Point(0,8);autoStart.Font=Theme.Body(9);
+        // Keep the setting readable at the manager's minimum width.
+        autoStart.AutoSize=false;autoStart.Size=new Size(236,36);
+        startupPanel.Controls.Add(autoStart);
+        startupPanel.Controls.Add(new Label{Text="恢復原有分類，管理介面留在系統匣",AutoSize=false,Location=new Point(0,48),Size=new Size(236,30),ForeColor=Theme.Muted,Font=Theme.Body(8.5f)});
+        autoStart.CheckedChanged+=(_,_)=>{if(!loadingStartup)app.SetAutoStart(autoStart.Checked);};
+        left.Controls.Add(startupPanel);startupPanel.BringToFront();
         var right=new Panel{Dock=DockStyle.Fill,BackColor=Theme.Panel};
         entries.BackColor=Theme.Panel;entries.ForeColor=Theme.Text;entries.BorderStyle=BorderStyle.None;
         entries.Columns.Add("檔案／程式",220);entries.Columns.Add("方式",84);entries.Columns.Add("所在位置",330);
@@ -128,8 +139,16 @@ internal sealed class ManagerWindow : ModernWindow
         if(baskets.Items.Count>0)baskets.SelectedIndex=Math.Max(0,index);
         baskets.EndUpdate();loading=false;
         toggle.Text=app.Store.State.Enabled?"暫停並還原圖示":"啟用桌面";
+        RefreshStartup();
         RefreshEntries();
         Invalidate(true);
+    }
+    internal void RefreshStartup()
+    {
+        loadingStartup=true;
+        try{autoStart.Checked=app.Startup.Enabled;autoStart.Enabled=true;}
+        catch(Exception ex){autoStart.Enabled=false;SetStatus("無法讀取登入啟動設定："+ex.Message,true);}
+        finally{loadingStartup=false;}
     }
     void RefreshEntries()
     {

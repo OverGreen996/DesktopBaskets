@@ -12,9 +12,12 @@ internal static class Program
         Theme.ConfigureNativeMenus();
         Application.SetCompatibleTextRenderingDefault(false);
         string? report=Value(args,"--report");
+        bool autoStart=args.Contains("--autostart");
         try
         {
-            try{using var desktop=new DesktopShell();Grid.Configure(desktop.Spacing);}catch{ /* default native-sized grid remains available for diagnostics */ }
+            if(!autoStart)try{using var desktop=new DesktopShell();Grid.Configure(desktop.Spacing);}catch{ /* default native-sized grid remains available for diagnostics */ }
+            if(args.Contains("--startup-test")){Write(report,Verification.StartupTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
+            if(args.Contains("--startup-ui-test")){Write(report,Verification.StartupTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"),true));return 0;}
             if(args.Contains("--self-test")){Write(report,Verification.SelfTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--arrangement-test")){Write(report,Verification.ArrangementTest());return 0;}
             if(args.Contains("--arrangement-diagnose")){Write(report,Verification.ArrangementDiagnose());return 0;}
@@ -44,7 +47,8 @@ internal static class Program
             if(args.Contains("--basket-menu-ui-test")){Write(report,Verification.BasketMenuUiTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--ui-demo")){Verification.Preview(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"));return 0;}
             using var mutex=new Mutex(true,"Local\\DesktopBaskets_"+Environment.UserName,out bool created);
-            if(!created){MessageBox.Show("桌面整理工具已在執行。請從右下角系統匣開啟分類管理。","Desktop Baskets");return 0;}
+            if(!created){if(!autoStart)MessageBox.Show("桌面整理工具已在執行。請從右下角系統匣開啟分類管理。","Desktop Baskets");return 0;}
+            if(autoStart)StartupSettings.WaitForDesktop(()=>{using var desktop=new DesktopShell();if(!desktop.Alive)throw new InvalidOperationException("Windows 桌面尚未就緒。");Grid.Configure(desktop.Spacing);},Thread.Sleep);
             var store=new Store();
             if(!File.Exists(store.StatePath))
             {
@@ -54,11 +58,12 @@ internal static class Program
                 if(area.Contains(games.ScreenBounds)&&area.Contains(misc.ScreenBounds))
                 {store.State.Baskets.AddRange(new[]{games,misc});store.State.Enabled=true;store.Save();}
             }
-            Application.Run(new App(store));return 0;
+            if(StartupSettings.RestoreBaskets(store.State,autoStart))store.Save();
+            Application.Run(new App(store,autoStart:autoStart));return 0;
         }
         catch(Exception ex)
         {
-            if(args.Length>0)Write(report,new{Passed=false,Error=ex.ToString()});else Theme.Error(ex);
+            if(args.Length>0&&!autoStart)Write(report,new{Passed=false,Error=ex.ToString()});else Theme.Error(ex);
             return 1;
         }
     }

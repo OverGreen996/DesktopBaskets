@@ -1,0 +1,85 @@
+{
+  "Version": "0.4.18",
+  "VerifiedDate": "2026-10-08",
+  "Passed": true,
+  "Checks": [
+    {
+      "Check": "startup-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "self-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "arrangement-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "selection-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "context-routing-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "lock-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "chrome-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "thumbnail-test",
+      "Passed": true,
+      "ExitCode": 0
+    }
+  ],
+  "StartupChecks": 15,
+  "StartupMouse": {
+    "IsolatedRegistry": true,
+    "EnableClickWritesRunCommand": true,
+    "DisableClickRemovesOwnValue": true,
+    "NoProductionRegistrationChangedByFixture": true
+  },
+  "Installation": {
+    "ExitCode": 0,
+    "Version": "0.4.18.0",
+    "BinaryMatches": true
+  },
+  "LoginIntegration": {
+    "PausedBeforeLogin": true,
+    "EnabledAfterLogin": true,
+    "BasketsRestored": 3,
+    "EntriesPreserved": 28,
+    "MembershipPathsGeometryLockPreserved": true,
+    "ManagerHidden": true,
+    "NativeClassifiedIconsHidden": 28,
+    "RebootPerformed": false,
+    "StartupLaunchSimulated": true
+  },
+  "DesktopAfterLogin": {
+    "Passed": true,
+    "ReadOnly": true,
+    "VisibleIcons": 50,
+    "ClassifiedIcons": 28,
+    "PlannedMoves": 0,
+    "NativeSpacing": "76, 99",
+    "GridAnchors": [
+      "14, 2"
+    ],
+    "NoBasketOverlap": true,
+    "StableAfterRepair": true
+  },
+  "AutoStartEnabled": true,
+  "AddedIdlePolling": false
+}

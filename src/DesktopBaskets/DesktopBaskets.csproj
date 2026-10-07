@@ -9,7 +9,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>DesktopBaskets</AssemblyName>
-    <Version>0.4.17</Version>
+    <Version>0.4.18</Version>
     <ApplicationIcon>Assets\DesktopBaskets.ico</ApplicationIcon>
     <Deterministic>true</Deterministic>
     <PathMap>$(MSBuildProjectDirectory)=/_/src/DesktopBaskets</PathMap>
