@@ -15,12 +15,12 @@
   <img src="https://img.shields.io/badge/Windows-x64-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="Windows x64">
   <img src="https://img.shields.io/badge/.NET_Framework-4.8-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt=".NET Framework 4.8">
   <img src="https://img.shields.io/badge/UI-Native_WinForms-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt="原生 WinForms 介面">
-  <img src="https://img.shields.io/badge/Release-0.4.17-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.4.17">
+  <img src="https://img.shields.io/badge/Release-0.4.18-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.4.18">
 </p>
 
 <p align="center">
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.17/DesktopBaskets-Setup-0.4.17-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.17/DesktopBaskets-Portable-0.4.17-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.18/DesktopBaskets-Setup-0.4.18-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.18/DesktopBaskets-Portable-0.4.18-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
 </p>
 
 <p align="center">
@@ -139,11 +139,12 @@ PNG、JPEG、BMP、GIF、TIFF 已通過縮圖驗證，透明 PNG 保留透明背
 
 ## 開始使用
 
-1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.17-x64.exe**。
+1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.18-x64.exe**。
 2. 執行安裝程式。預設只安裝到目前 Windows 帳號，不需要系統管理員權限。
 3. 從開始功能表開啟 **Desktop Baskets**，新增「遊戲」、「工作」、「雜項」等分類。
 4. 把桌面項目拖進框內，雙擊即可開啟。
 5. 在框內空白處按住左鍵拖曳，框選後即可一起整理。
+6. 希望每次登入自動恢復籃子，可勾選分類管理左下角的 **「登入 Windows 後自動啟動並開啟籃子」**。
 
 安裝程式提供 **桌面捷徑** 與 **登入 Windows 時啟動** 兩個可選項，預設都不勾選。也提供 ZIP 免安裝版。
 
@@ -191,6 +192,7 @@ PNG、JPEG、BMP、GIF、TIFF 已通過縮圖驗證，透明 PNG 保留透明背
 | 驗證範圍 | 結果 |
 | :--- | :--- |
 | 版面與原始路徑 | 498 項自動檢查通過。 |
+| 登入啟動（0.4.18） | 15 項檢查與開關滑鼠操作通過；正式安裝版從暫停狀態恢復三個籃子、28 個項目，分類／路徑／位置／LOCK 不變，管理視窗隱藏。以登入參數模擬，尚未實際重新開機。 |
 | 桌面補齊（0.4.17） | 310 項檢查通過，包含既有空洞、原生格距、負座標多螢幕、籃框避讓、容量不足與重複執行穩定性。 |
 | Explorer 重新整理（0.4.17） | 三次原生重新整理通過，空位補齊且沒有自我觸發事件迴圈；拖出項目回到落點附近，原檔內容不變。 |
 | 圖片縮圖（0.4.16） | 五種格式、PNG 透明度、快取上限、背景取消及遺失檔案通過；示範籃框點選與原生右鍵已用滑鼠驗證。 |
@@ -229,7 +231,7 @@ scripts/              建置腳本
 docs/                 說明、介面預覽與驗證結果
 ```
 
-GitHub Actions 會建置免安裝版，執行版面、檔案路徑、桌面補齊、框選、右鍵訊息路由、LOCK、視窗按鈕與圖片縮圖檢查。安裝版由 Inno Setup 腳本建置，正式檔案附於 Releases。
+GitHub Actions 會建置免安裝版，執行版面、檔案路徑、桌面補齊、框選、右鍵訊息路由、LOCK、視窗按鈕、圖片縮圖與登入啟動檢查。安裝版由 Inno Setup 腳本建置，正式檔案附於 Releases。
 
 ## 字型、相依與視覺來源
 
