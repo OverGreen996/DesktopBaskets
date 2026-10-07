@@ -15,12 +15,12 @@
   <img src="https://img.shields.io/badge/Windows-x64-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="Windows x64">
   <img src="https://img.shields.io/badge/.NET_Framework-4.8-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt=".NET Framework 4.8">
   <img src="https://img.shields.io/badge/UI-Native_WinForms-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt="原生 WinForms 介面">
-  <img src="https://img.shields.io/badge/Release-0.4.15-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.4.15">
+  <img src="https://img.shields.io/badge/Release-0.4.17-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.4.17">
 </p>
 
 <p align="center">
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.15/DesktopBaskets-Setup-0.4.15-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.15/DesktopBaskets-Portable-0.4.15-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.17/DesktopBaskets-Setup-0.4.17-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.17/DesktopBaskets-Portable-0.4.17-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
 </p>
 
 <p align="center">
@@ -89,12 +89,25 @@ Desktop Baskets 是 Windows 原生桌面分類工具。以《明日方舟：終�
 | **原生檔案操作** | 右鍵已選取項目保留多選，Windows Shell 處理開啟、複製、剪下、刪除與內容。支援時顯示深色完整選單。 |
 | **原始路徑保留** | 分類與跨籃移動只改視覺歸屬，原檔不搬移、不複製，也不建立額外捷徑。 |
 | **乾淨的捷徑名稱** | 圖示、提示名稱與分類管理隱藏 `.lnk`、`.url`、`.website`、`.appref-ms`；原始檔名與路徑保留。 |
-| **空位自動補齊** | 分類後，後面的未分類圖示依桌面順序補上空位；重新整理後保留已整理位置並清除隱藏圖示的選取框。 |
+| **圖片縮圖** | 圖片使用 Windows Shell 預覽，保留比例與透明背景；無法取得縮圖時回退為原生圖示。 |
+| **空位自動補齊** | 分類與桌面重新整理時，未分類圖示依原有順序填補所有可用空位，沿用原生格距，避開籃框並留在原螢幕。 |
 | **桌面圖示避讓** | 新增、移動或放大整理框時，先把擋到的未分類圖示擠到可用位置。 |
 | **按格數縮放** | 沿用系統桌面的圖示間距；最小 5 × 1 格，超出範圍可捲動。 |
 | **磁吸與鎖定** | 靠近其他框會吸附對齊；點擊鎖頭或 STATUS 文字鎖定位置與大小。鎖定後框的游標維持一般箭頭，只有 LOCK 保留手形提示；框內檔案仍可操作。 |
 | **即時資料** | 編號、檔案數、狀態、格數、版本與修訂日期都有實際用途。 |
 | **低資源待命** | 30 秒無操作進入微待命，以事件喚醒；沒有持續動畫或桌面輪詢。 |
+
+### 0.4.17 更新：桌面空洞自動補齊
+
+把項目拖入籃框後，桌面剩餘圖示會依原有順序往前補齊，也會整理先前留下的空洞。啟動、分類、調整籃框與桌面重新整理時，依 Windows 原生格距重新安排可用位置；避開籃框，不把圖示移往其他螢幕。
+
+直接拖出籃框仍會先放在落點附近，下一次分類或重新整理再補齊。檔案路徑保留；透過桌面與檔案事件觸發，沒有新增閒置輪詢。
+
+### 0.4.16 更新：圖片保留預覽
+
+PNG、JPEG、BMP、GIF、TIFF 已通過縮圖驗證，透明 PNG 保留透明背景。其他格式依系統 Shell 縮圖提供者支援，取得失敗則顯示原生圖示。
+
+縮圖由背景工作取得，與圖示共用最多 64 份快取；工作完成後停止，不持續佔用背景執行緒。圖片內容更新會重新取得預覽，待命時清空快取。
 
 ### 0.4.15 更新：視窗按鈕恢復正常
 
@@ -117,7 +130,7 @@ Desktop Baskets 是 Windows 原生桌面分類工具。以《明日方舟：終�
 
 ## 開始使用
 
-1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.15-x64.exe**。
+1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.17-x64.exe**。
 2. 執行安裝程式。預設只安裝到目前 Windows 帳號，不需要系統管理員權限。
 3. 從開始功能表開啟 **Desktop Baskets**，新增「遊戲」、「工作」、「雜項」等分類。
 4. 把桌面項目拖進框內，雙擊即可開啟。
@@ -163,22 +176,25 @@ Desktop Baskets 是 Windows 原生桌面分類工具。以《明日方舟：終�
 
 微待命會停止閒置計時器，清空圖示快取並一次性回收工作集；點擊、拖曳、鍵盤與捲動仍可喚醒。
 
-本次框選在操作時重繪，沒有新增閒置輪詢；捷徑顯示名稱會快取，不會在每次繪製時讀取檔案系統。
+框選在操作時重繪，捷徑顯示名稱會快取。縮圖工作在佇列清空後停止；桌面補齊透過事件觸發，沒有新增閒置輪詢。
 
 | 驗證範圍 | 結果 |
 | :--- | :--- |
 | 版面與原始路徑 | 498 項自動檢查通過。 |
+| 桌面補齊（0.4.17） | 310 項檢查通過，包含既有空洞、原生格距、負座標多螢幕、籃框避讓、容量不足與重複執行穩定性。 |
+| Explorer 重新整理（0.4.17） | 三次原生重新整理通過，空位補齊且沒有自我觸發事件迴圈；拖出項目回到落點附近，原檔內容不變。 |
+| 圖片縮圖（0.4.16） | 五種格式、PNG 透明度、快取上限、背景取消及遺失檔案通過；示範籃框點選與原生右鍵已用滑鼠驗證。 |
 | 多選 | 雙向框選、Ctrl／Shift、全選、捲動、取消、重新整理後維持選取、跨籃移動及跨路徑原生複製。 |
 | LOCK | 小框與大框、文字與圓點切換、八邊游標、鎖定拖曳、待命喚醒、設定保存及框外放開取消均通過。 |
 | LOCK 滑鼠（0.4.14） | 實際點擊文字與鎖頭三次；鎖定後拖標頭與右下角，位置／尺寸不變，框邊游標為一般箭頭，檔案仍可選取。 |
 | 框選滑鼠（0.4.12） | 真實籃框與玻璃底板的框選、兩個項目一起跨籃拖曳、Ctrl+A、Esc，以及原生內容顯示「2 個檔案」。 |
 | 原生右鍵 | 本版右鍵訊息路由檢查通過。0.4.12 的多選深色選單曾保持開啟約 28.8 秒後正常執行內容命令。 |
 | 視窗按鈕（0.4.15） | 正式安裝版的最小化、最大化、還原與重新開啟通過滑鼠點擊驗證；滑鼠擷取情境的三輪狀態切換通過回歸測試。 |
-| 本機更新 | 0.4.15 升級安裝驗證成功，分類、檔案歸屬與籃框位置保留。 |
+| 本機更新（0.4.17） | 正式安裝成功，分類、原始路徑與籃框位置保留；實際桌面唯讀檢查為 51 個可見圖示、28 個已分類項目，待補齊移動數為 0。 |
 
 籃框滑鼠驗證使用實際籃框控制項與示範檔案，宿主為獨立測試視窗；工具無法直接選取 Explorer 下的個人桌面子視窗。0.4.15 視窗按鈕另在正式安裝的管理介面實測。拖回桌面的驗證結合拖曳事件與 Explorer 圖示返回落點，尚未完成端對端滑鼠拖回桌面的測試。
 
-**資源數據的限制：** 0.4.5 曾量得待命工作集約 10.5 MiB、CPU 約 0.156%（單核心）；0.4.6 在另一輪環境量得約 12.34%，偏高原因尚未確定。0.4.15 尚未重做完整待命效能量測，因此不宣稱固定記憶體用量或極低 CPU。歷史數據與各版驗證範圍保留於 [驗證紀錄](docs/verification.json)。
+**資源數據的限制：** 0.4.5 曾量得待命工作集約 10.5 MiB、CPU 約 0.156%（單核心）；0.4.6 在另一輪環境量得約 12.34%，偏高原因尚未確定。0.4.17 尚未重做完整待命效能量測，因此不宣稱固定記憶體用量或極低 CPU。可查看 [0.4.17 驗證](docs/verification-0.4.17.json)、[圖片縮圖驗證](docs/verification-0.4.16.json) 與 [歷史紀錄](docs/verification.json)。
 
 </details>
 
@@ -203,7 +219,7 @@ scripts/              建置腳本
 docs/                 說明、介面預覽與驗證結果
 ```
 
-GitHub Actions 會建置免安裝版，執行版面、檔案路徑、框選、右鍵訊息路由與 LOCK 檢查。安裝版由 Inno Setup 腳本建置，正式檔案附於 Releases。
+GitHub Actions 會建置免安裝版，執行版面、檔案路徑、桌面補齊、框選、右鍵訊息路由、LOCK、視窗按鈕與圖片縮圖檢查。安裝版由 Inno Setup 腳本建置，正式檔案附於 Releases。
 
 ## 字型、相依與視覺來源
 
