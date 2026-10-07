@@ -93,6 +93,7 @@ internal sealed class BasketViewport : Control
     }
     internal void HandlePointerDown(Point point,MouseButtons button,Keys modifiers)
     {
+        if(basket.Shared)return;
         down=point;collapseOnRelease=false;int index=Hit(point);
         if(button==MouseButtons.Right)
         {
@@ -189,6 +190,7 @@ internal sealed class BasketViewport : Control
                 if(e.ClipRectangle.Contains(x,y))e.Graphics.FillRectangle(gridDot,x,y,1,1);
         using(var cluster=new SolidBrush(Color.FromArgb(71,76,75)))
             foreach(var point in new[]{new Point(ClientSize.Width-52,44),new Point(ClientSize.Width-42,44),new Point(ClientSize.Width-32,44),new Point(ClientSize.Width-52,54),new Point(27,ClientSize.Height-45),new Point(37,ClientSize.Height-45),new Point(47,ClientSize.Height-45)})e.Graphics.FillRectangle(cluster,point.X,point.Y,2,2);
+        if(basket.Shared)return;
         if(CanScroll)
         {
             using var track=new SolidBrush(Theme.Line);e.Graphics.FillRectangle(track,ScrollTrack);
@@ -283,11 +285,12 @@ internal sealed class BasketViewport : Control
         if(!ClientRectangle.Contains(PointToClient(Cursor.Position))&&hover!=-1){hover=-1;Invalidate();}
         base.OnMouseLeave(e);
     }
-    protected override void OnMouseDoubleClick(MouseEventArgs e){base.OnMouseDoubleClick(e);int index=Hit(e.Location);if(index>=0)Theme.Try(()=>Theme.Open(basket.Entries[index].Path));}
+    protected override void OnMouseDoubleClick(MouseEventArgs e){base.OnMouseDoubleClick(e);if(basket.Shared)return;int index=Hit(e.Location);if(index>=0)Theme.Try(()=>Theme.Open(basket.Entries[index].Path));}
     protected override bool IsInputKey(Keys keyData)=>(keyData&Keys.KeyCode) is Keys.Left or Keys.Right or Keys.Up or Keys.Down or Keys.Home or Keys.End or Keys.PageUp or Keys.PageDown||base.IsInputKey(keyData);
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        if(basket.Shared)return;
         if(e.KeyCode==Keys.Escape){if(marquee)EndMarquee(true);else{selection.Clear();Changed();}e.Handled=true;e.SuppressKeyPress=true;return;}
         if(basket.Entries.Count==0)return;
         if(e.Control&&e.KeyCode==Keys.A){selection.UnionWith(basket.Entries.Select(x=>x.Id));SetFocus(Math.Max(0,selected),true);Changed();e.Handled=true;e.SuppressKeyPress=true;return;}
@@ -324,8 +327,8 @@ internal sealed class BasketViewport : Control
         public ViewAccessible(BasketViewport owner):base(owner){this.owner=owner;}
         public override AccessibleStates State=>base.State|AccessibleStates.MultiSelectable|AccessibleStates.ExtSelectable;
         public override AccessibleObject? GetFocused()=>owner.Focused&&owner.selected>=0?GetChild(owner.selected):null;
-        public override int GetChildCount()=>owner.basket.Entries.Count;
-        public override AccessibleObject? GetChild(int index)=>index>=0&&index<GetChildCount()?new EntryAccessible(owner,index,this):null;
+        public override int GetChildCount()=>owner.basket.Shared?base.GetChildCount():owner.basket.Entries.Count;
+        public override AccessibleObject? GetChild(int index)=>owner.basket.Shared?base.GetChild(index):index>=0&&index<GetChildCount()?new EntryAccessible(owner,index,this):null;
     }
     sealed class EntryAccessible : AccessibleObject
     {

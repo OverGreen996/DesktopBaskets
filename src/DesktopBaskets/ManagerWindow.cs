@@ -23,7 +23,7 @@ internal sealed class ManagerWindow : ModernWindow
     {
         this.app=app;Theme.Form(this);Text="Desktop Baskets · 桌面分類工具";
         Icon=Theme.AppIcon;ClientSize=new Size(1060,680);MinimumSize=new Size(850,560);
-        var top=new WindowHeaderPanel{Dock=DockStyle.Top,Height=132,Padding=new Padding(24)};
+        var top=new WindowHeaderPanel{Dock=DockStyle.Top,Height=178,Padding=new Padding(24)};
         var captionButtons=new[]{new CaptionButton(this,CaptionAction.Minimize),new CaptionButton(this,CaptionAction.Maximize),new CaptionButton(this,CaptionAction.Close)};
         top.Paint+=(_,e)=>
         {
@@ -34,12 +34,13 @@ internal sealed class ManagerWindow : ModernWindow
             FrameArt.Label(e.Graphics,"DESKTOP",new RectangleF(166,38,245,50),FrameArt.Display(38),Theme.Text);
             FrameArt.Tracked(e.Graphics,"OBJECTS",441,12,12,1,Theme.Muted);
             FrameArt.Label(e.Graphics,app.Store.State.Baskets.Sum(b=>b.Entries.Count).ToString("000"),new RectangleF(441,31,104,37),FrameArt.Data(28),Theme.Text);
-            using var accent=new SolidBrush(Theme.Accent);e.Graphics.FillRectangle(accent,24,123,52,3);
-            using var line=new Pen(Theme.Line);e.Graphics.DrawLine(line,88,124,top.Width-24,124);
+            using var accent=new SolidBrush(Theme.Accent);e.Graphics.FillRectangle(accent,24,169,52,3);
+            using var line=new Pen(Theme.Line);e.Graphics.DrawLine(line,88,170,top.Width-24,170);
         };
         top.Controls.Add(new Label{Text="原位分類  /  拖入檔案 · 磁吸對齊 · 按格縮放",Location=new Point(88,90),AutoSize=true,ForeColor=Theme.Muted,Font=Theme.Body(9)});
-        var commands=new FlowLayoutPanel{Width=418,Height=50,FlowDirection=FlowDirection.LeftToRight,Padding=new Padding(0,4,0,0)};
+        var commands=new FlowLayoutPanel{Width=574,Height=50,FlowDirection=FlowDirection.LeftToRight,Padding=new Padding(0,4,0,0)};
         commands.Controls.Add(Theme.Button("＋ 新增分類",(_,_)=>app.NewBasket(),true));
+        commands.Controls.Add(Theme.Button("＋ 共享籃框",(_,_)=>app.NewBasket(true)));
         toggle=Theme.Button("暫停桌面",(_,_)=>app.Toggle());commands.Controls.Add(toggle);
         commands.Controls.Add(Theme.Button("關閉並退出",(_,_)=>app.Quit()));top.Controls.Add(commands);
         foreach(var button in captionButtons)top.Controls.Add(button);
@@ -47,7 +48,7 @@ internal sealed class ManagerWindow : ModernWindow
         {
             int buttonWidth=(int)Math.Round(52*DeviceDpi/96.0),buttonHeight=(int)Math.Round(44*DeviceDpi/96.0);
             for(int i=0;i<captionButtons.Length;i++)captionButtons[i].Bounds=new Rectangle(top.Width-(captionButtons.Length-i)*buttonWidth,0,buttonWidth,buttonHeight);
-            commands.Location=new Point(top.Width-commands.Width-24,70);
+            commands.Location=new Point(top.Width-commands.Width-24,120);
             CaptionRegion=top.Bounds;
         }
         top.Resize+=(_,_)=>LayoutCaption();top.LocationChanged+=(_,_)=>LayoutCaption();
@@ -69,8 +70,9 @@ internal sealed class ManagerWindow : ModernWindow
         };
         baskets.SelectedIndexChanged+=(_,_)=>{if(!loading)RefreshEntries();};
         baskets.DoubleClick+=(_,_)=>{if(Selected is Basket b)app.EditBasket(b);};
-        var leftActions=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=176};
+        var leftActions=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=216};
         leftActions.Controls.Add(Theme.Button("分類設定",(_,_)=>{if(Selected is Basket b)app.EditBasket(b);}));
+        leftActions.Controls.Add(Theme.Button("共享與裝置",(_,_)=>app.ShowSharingSettings()));
         leftActions.Controls.Add(Theme.Button("移除分類",(_,_)=>{if(Selected is Basket b)app.DeleteBasket(b);}));
         leftActions.Controls.Add(Theme.Button("移至螢幕",(_,_)=>{if(Selected is Basket b)app.ShowScreenMenu(b);}));
         leftActions.Controls.Add(Theme.Button("開啟設定資料夾",(_,_)=>Theme.Try(()=>Theme.Open(app.Store.Root))));

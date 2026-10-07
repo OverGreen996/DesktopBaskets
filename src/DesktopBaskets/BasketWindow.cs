@@ -15,10 +15,11 @@ internal sealed class BasketWindow : Form
     public Basket Basket { get; }
     readonly Panel header=new ArtPanel(){Dock=DockStyle.Top,Height=Grid.Header};
     readonly BasketViewport items;
+    readonly SharePanel? shared;
     public BasketViewport Viewport => items;
     readonly Panel footer=new ArtPanel(){Dock=DockStyle.Bottom,Height=Grid.Footer};
     public int FrameOrdinal=>Math.Max(1,app.Store.State.Baskets.IndexOf(Basket)+1);
-    public int ObjectCount=>Basket.Entries.Count;
+    public int ObjectCount=>Basket.Shared?app.Sharing.Snapshot?.files.Length??0:Basket.Entries.Count;
     public string FrameStatus=>Basket.Locked?"LOCKED":app.IsStandby?"STANDBY":"READY";
     readonly Button lockButton,menuButton;
     readonly Control[] captureTargets;
@@ -36,6 +37,7 @@ internal sealed class BasketWindow : Form
     {
         this.app=app; Basket=basket;
         items=new BasketViewport(app,basket);
+        if(basket.Shared){shared=new SharePanel(app,basket);items.Controls.Add(shared);shared.BringToFront();app.Sharing.Changed+=RefreshStatus;}
         items.EdgeCursor=()=>CursorForEdge(ResizeAt(PointToClient(Cursor.Position)));
         Theme.Form(this); FormBorderStyle=FormBorderStyle.None; ShowInTaskbar=false;TopLevel=false;
         AutoScaleMode=AutoScaleMode.None; StartPosition=FormStartPosition.Manual;
@@ -63,6 +65,7 @@ internal sealed class BasketWindow : Form
             surface.MouseUp+=(_,_)=>EndDrag();surface.MouseCaptureChanged+=(_,_)=>CancelLostCapture();
         }
         SizeChanged+=(_,_)=>LayoutChrome();LayoutChrome();
+        items.Resize+=(_,_)=>LayoutChrome();
         DragEnter+=OnDragEnter; DragDrop+=OnDrop;
         // Child controls also participate in OLE file drop.
         foreach(var control in new Control[]{items,header,footer}) { control.AllowDrop=true; control.DragEnter+=OnDragEnter; control.DragDrop+=OnDrop; }
@@ -107,6 +110,7 @@ internal sealed class BasketWindow : Form
     void LayoutChrome()
     {
         header.Height=Grid.HeaderFor(Width);footer.Height=Grid.FooterFor(Width);
+        if(shared!=null)shared.Bounds=new Rectangle(Grid.ContentLeft,Grid.ContentTopFor(Width),Math.Max(1,items.ClientSize.Width-Grid.Side),Math.Max(1,items.ClientSize.Height-Grid.ContentTopFor(Width)-Grid.ContentBottomFor(Width)));
         if(menuButton==null||lockButton==null)return;
         float s=header.Width/1537f,t=header.Height/102f;
         int flagWidth=Grid.Compact(Width)?(int)Math.Round(header.Height*63.0/102):Math.Max(13,header.Width-(int)(1474*s));
@@ -146,6 +150,16 @@ internal sealed class BasketWindow : Form
         // sibling surfaces or outside the original target's rectangle.
         foreach(var control in captureTargets)
             if(control.Capture)return control;
+        if(shared!=null)
+        {
+            Control? Captured(Control parent)
+            {
+                if(parent.Capture)return parent;
+                foreach(Control child in parent.Controls){var found=Captured(child);if(found!=null)return found;}
+                return null;
+            }
+            var captured=Captured(shared);if(captured!=null)return captured;
+        }
         var p=PointToClient(screenPoint);
         if(header.Bounds.Contains(p))
         {
@@ -154,7 +168,14 @@ internal sealed class BasketWindow : Form
             if(lockButton.Bounds.Contains(p))return lockButton;
             return header;
         }
-        return footer.Visible&&footer.Bounds.Contains(p)?footer:items;
+        if(footer.Visible&&footer.Bounds.Contains(p))return footer;
+        if(shared!=null&&shared.Visible&&shared.ClientRectangle.Contains(shared.PointToClient(screenPoint)))
+        {
+            Control target=shared;
+            while(target.GetChildAtPoint(target.PointToClient(screenPoint),GetChildAtPointSkip.Invisible) is Control child)target=child;
+            return target;
+        }
+        return items;
     }
     protected override void OnVisibleChanged(EventArgs e)
     {
@@ -233,7 +254,7 @@ internal sealed class BasketWindow : Form
         if(outline)ControlPaint.DrawReversibleFrame(preview,Color.White,FrameStyle.Dashed);
         outline=false;moving=false;resizing=false;if(dragControl!=null)dragControl.Capture=false;dragControl=null;
     }
-    protected override void Dispose(bool disposing) { if(disposing){CancelDrag();help.Dispose();glass?.Dispose();}base.Dispose(disposing); }
+    protected override void Dispose(bool disposing) { if(disposing){if(shared!=null)app.Sharing.Changed-=RefreshStatus;CancelDrag();help.Dispose();glass?.Dispose();}base.Dispose(disposing); }
     sealed class LockButton : Button
     {
         readonly Func<bool> locked,compact;readonly Func<string> status;bool pressed;

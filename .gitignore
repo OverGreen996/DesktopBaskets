@@ -9,3 +9,14 @@ dist/
 state.json*
 tests/
 *.log
+
+share-core/target/
+android/.gradle/
+android/**/build/
+android/local.properties
+*.keystore
+*.jks
+*.dpapi
+*.sqlite*
+*.pem
+.tools/

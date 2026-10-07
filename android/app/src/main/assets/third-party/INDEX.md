@@ -1,0 +1,34 @@
+# Android runtime dependency attribution
+Resolved releaseRuntimeClasspath. Original Maven manifests retain authors, project URLs and declared licenses. Apache-2.0 full text and original notices are included.
+- androidx.annotation:annotation-experimental:1.4.1 — The Apache Software License, Version 2.0
+- androidx.annotation:annotation-jvm:1.8.1 — The Apache Software License, Version 2.0
+- androidx.annotation:annotation:1.8.1 — The Apache Software License, Version 2.0
+- androidx.arch.core:core-common:2.2.0 — The Apache Software License, Version 2.0
+- androidx.arch.core:core-runtime:2.2.0 — The Apache Software License, Version 2.0
+- androidx.collection:collection-jvm:1.4.2 — The Apache Software License, Version 2.0
+- androidx.collection:collection:1.4.2 — The Apache Software License, Version 2.0
+- androidx.concurrent:concurrent-futures:1.1.0 — The Apache Software License, Version 2.0
+- androidx.core:core:1.15.0 — The Apache Software License, Version 2.0
+- androidx.interpolator:interpolator:1.0.0 — The Apache Software License, Version 2.0
+- androidx.lifecycle:lifecycle-common:2.6.2 — The Apache Software License, Version 2.0
+- androidx.lifecycle:lifecycle-runtime:2.6.2 — The Apache Software License, Version 2.0
+- androidx.profileinstaller:profileinstaller:1.3.0 — The Apache Software License, Version 2.0
+- androidx.startup:startup-runtime:1.1.1 — The Apache Software License, Version 2.0
+- androidx.tracing:tracing:1.2.0 — The Apache Software License, Version 2.0
+- androidx.versionedparcelable:versionedparcelable:1.1.1 — The Apache Software License, Version 2.0
+- com.google.guava:listenablefuture:1.0 — Apache-2.0 (parent manifest)
+- com.google.zxing:core:3.4.1 — Apache-2.0 (original manifest header)
+- com.journeyapps:zxing-android-embedded:4.3.0 — The Apache License, Version 2.0
+- com.squareup.okhttp3:okhttp:4.12.0 — The Apache Software License, Version 2.0
+- com.squareup.okio:okio-jvm:3.6.0 — The Apache Software License, Version 2.0
+- com.squareup.okio:okio:3.6.0 — The Apache Software License, Version 2.0
+- org.bouncycastle:bcprov-jdk18on:1.80 — Bouncy Castle Licence
+- org.jetbrains:annotations:13.0 — The Apache Software License, Version 2.0
+- org.jetbrains.kotlin:kotlin-stdlib-common:1.9.10 — The Apache License, Version 2.0
+- org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10 — The Apache License, Version 2.0
+- org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10 — The Apache License, Version 2.0
+- org.jetbrains.kotlin:kotlin-stdlib:1.9.10 — The Apache License, Version 2.0
+- org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4 — The Apache Software License, Version 2.0
+- org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.6.4 — The Apache Software License, Version 2.0
+- org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.4 — The Apache Software License, Version 2.0
+- org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4 — The Apache Software License, Version 2.0

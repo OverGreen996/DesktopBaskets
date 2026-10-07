@@ -7,3 +7,8 @@
 *.png binary
 *.ico binary
 *.ttf binary
+
+# Preserve upstream attribution text, including its original whitespace.
+licenses/** -whitespace
+android/app/src/main/assets/third-party/** -whitespace
+android/app/src/main/assets/RussoOne-OFL.txt -whitespace

@@ -34,6 +34,21 @@
   <img src="docs/images/features.svg" alt="原位保留、框選整理、玻璃工作區" width="100%">
 </p>
 
+## 0.5.0 共享整合預覽
+
+此分支是本地測試版本。Windows 的 PocketDrop 文字、檔案、配對、QR 邀請與 LAN 傳輸正在整合為一個真正的共享籃框；Android 端同步重製為終末地視覺語彙的原生介面。原版下載連結仍指向已發布的 0.4.18。
+
+從籃框「裝置 / QR」顯示邀請，手機直接掃碼連線。本機原檔保留原路徑，其他裝置按需下載，無 WebView2。原 PocketDrop 的配對資料採複製匯入，拒絕覆蓋已有 Room。
+
+[共享功能與接手說明](docs/SHARING.md) · [手機端說明](android/README.md)
+
+<p align="center">
+  <img src="docs/images/mobile-text.png" width="28%" alt="手機文字分享">
+  <img src="docs/images/mobile-files.png" width="28%" alt="手機檔案分享">
+  <img src="docs/images/mobile-devices.png" width="28%" alt="手機掃描電腦 QR 連線">
+</p>
+<p align="center"><sub>新版手機原生控制項預覽：文字、檔案、裝置。由 Robolectric 渲染示範資料，尚待實體手機相機驗證。</sub></p>
+
 ## 介面預覽
 
 ### 桌面上的整理方式

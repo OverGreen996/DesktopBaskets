@@ -15,6 +15,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test native sharing protocol
+        shell: pwsh
+        run: cargo test --locked --manifest-path share-core/Cargo.toml
       - name: Build portable app
         shell: pwsh
         run: ./scripts/build.ps1

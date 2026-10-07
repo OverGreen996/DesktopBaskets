@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.4.19"
+  #define AppVersion "0.5.0"
 #endif
 #ifndef PayloadDir
   #define PayloadDir "..\build\stage"
@@ -88,10 +88,15 @@ Filename: "{app}\DesktopBaskets.exe"; Description: "{cm:Launch}"; Flags: nowait 
 Source: "{#PayloadDir}\DesktopBaskets.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\DesktopBaskets.exe.config"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\Newtonsoft.Json.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PayloadDir}\DesktopBaskets.Share.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PayloadDir}\QRCoder.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PayloadDir}\zxing.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#PayloadDir}\使用說明.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\Newtonsoft.Json-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PayloadDir}\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PayloadDir}\共享使用說明.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Code]
 function CheckRunning(IsSilent: Boolean): Boolean;

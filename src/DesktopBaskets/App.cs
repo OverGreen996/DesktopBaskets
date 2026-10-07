@@ -6,6 +6,7 @@ internal sealed class App : ApplicationContext
     public IconCache Icons { get; }=new();
     public ManagerWindow Manager { get; }
     internal StartupSettings Startup { get; }
+    internal Sharing Sharing {get;}
     readonly DesktopLayout layout;
     readonly Dictionary<string,BasketWindow> windows=new();
     internal IReadOnlyCollection<BasketWindow> DesktopWindows=>windows.Values;
@@ -33,6 +34,7 @@ internal sealed class App : ApplicationContext
     public App(Store store,bool smoke=false,bool autoStart=false,StartupSettings? startup=null)
     {
         Store=store;Startup=startup??new StartupSettings();layout=new DesktopLayout(store);Manager=new ManagerWindow(this);
+        Sharing=new Sharing(Manager,store.Root);_ = Manager.Handle;
         Icons.ImageReady+=path=>{foreach(var window in windows.Values)if(!window.IsDisposed)window.Viewport.RefreshImage(path);};
         Theme.ErrorOwner=Manager;
         // Upgrade the installer's older command to the explicit login mode.
@@ -57,6 +59,7 @@ internal sealed class App : ApplicationContext
             catch(Exception ex){Store.State.Enabled=false;Store.Save();ShowManager();Manager.SetStatus("上次的桌面位置還原失敗，備份仍保留。",true);Theme.Error(ex);}
             if(Store.State.Enabled){DisplayChanged();if(displaySuspended)ScheduleDisplayChanged();}
             else Manager.SetStatus("準備就緒 · 新增分類會自動放上桌面。關閉管理視窗後可從系統匣開啟。");
+            if(Store.State.Baskets.Any(b=>b.Shared))Manager.BeginInvoke(new Action(()=>StartSharing()));
         }
     }
     internal void SetAutoStart(bool enabled)
@@ -104,11 +107,12 @@ internal sealed class App : ApplicationContext
             if(interaction)app.Wake();return false;
         }
     }
-    public void NewBasket()
+    public void NewBasket(bool shared=false)
     {
+        if(shared&&Store.State.Baskets.Any(b=>b.Shared)){ShowManager();Manager.SetStatus("已有共享籃框；每台電腦共用一個 Room。");return;}
         ShowManager();var area=Screen.FromControl(Manager).WorkingArea;
         // Reserve space on the right first; overlapped icons will be displaced automatically.
-        var model=new Basket{Name="新分類",X=area.Right-356,Y=area.Top+24,Monitor=Screen.FromControl(Manager).DeviceName};
+        var model=new Basket{Name=shared?"共享":"新分類",Kind=shared?"share":"local",X=area.Right-356,Y=area.Top+24,Monitor=Screen.FromControl(Manager).DeviceName};
         var rects=Store.State.Baskets.Select(b=>b.ScreenBounds).ToArray();
         bool found=false;
         for(int y=area.Top+24;y+model.Height<=area.Bottom&&!found;y+=model.Height+16)
@@ -123,7 +127,7 @@ internal sealed class App : ApplicationContext
         if(dialog.ShowDialog(Manager)!=DialogResult.OK)return;
         bool previouslyEnabled=Store.State.Enabled;
         Store.State.Baskets.Add(model);Store.State.Enabled=true;
-        try {ApplyLayout();Store.Save();Refresh(model.Id);}
+        try {ApplyLayout();Store.Save();Refresh(model.Id);if(shared){if(Sharing.CanImportLegacy)ShowSharingSettings();else StartSharing();}}
         catch(Exception ex)
         {
             Store.State.Baskets.Remove(model);Store.State.Enabled=previouslyEnabled;
@@ -191,7 +195,7 @@ internal sealed class App : ApplicationContext
     public void DeleteBasket(Basket basket)
     {
         // Removing a basket restores collected files; references are only detached.
-        Theme.Try(()=>{Store.Delete(basket);if(Store.State.Enabled){if(Store.State.Baskets.Count==0)Toggle();else ApplyLayout();}Refresh();});
+        Theme.Try(()=>{Store.Delete(basket);if(basket.Shared)Sharing.Stop();if(Store.State.Enabled){if(Store.State.Baskets.Count==0)Toggle();else ApplyLayout();}Refresh();});
     }
     public void PickDesktop(Basket basket)
     {
@@ -200,6 +204,7 @@ internal sealed class App : ApplicationContext
     }
     public void AddPaths(Basket basket,IEnumerable<string> paths)
     {
+        if(basket.Shared){_=AddSharedPaths(basket,paths.ToArray());return;}
         var errors=new List<string>();
         foreach(var path in paths)try{Store.Add(basket,path);}catch(Exception ex){errors.Add(System.IO.Path.GetFileName(path)+"："+ex.Message);}
         if(Store.State.Enabled)try{ApplyLayout();}catch(Exception ex){errors.Add(ex.Message);}
@@ -243,6 +248,9 @@ internal sealed class App : ApplicationContext
         var chosen=new HashSet<string>(ids);
         var entries=Store.State.Baskets.Where(b=>b!=target).SelectMany(b=>b.Entries).Where(e=>chosen.Contains(e.Id)).ToArray();
         if(entries.Length==0)return;
+        if(target.Shared){_=AddSharedPaths(target,entries.Select(e=>e.Path).ToArray());return;}
+        var sharedEntries=Store.State.Baskets.Where(b=>b.Shared).SelectMany(b=>b.Entries).Where(e=>chosen.Contains(e.Id)).ToArray();
+        if(sharedEntries.Length>0){_=TransferSharedToLocal(target,entries,sharedEntries);return;}
         var movingIds=new HashSet<string>(entries.Select(e=>e.Id));
         Theme.Try(()=>{foreach(var basket in Store.State.Baskets)basket.Entries.RemoveAll(e=>movingIds.Contains(e.Id));target.Entries.AddRange(entries);Store.Save();Refresh(target.Id);});
     }
@@ -301,6 +309,7 @@ internal sealed class App : ApplicationContext
         menu.Items.Add(basket.Locked?"解鎖位置與大小":"鎖定位置與大小",null,(_,_)=>ToggleLock(basket));
         menu.Items.Add(basket.Collapsed?"展開":"收合",null,(_,_)=>Collapse(basket)).Enabled=!basket.Locked;
         menu.Items.Add(ScreenMenu(basket));
+        if(basket.Shared)menu.Items.Add("共享與裝置設定",null,(_,_)=>ShowSharingSettings());
         menu.Items.Add("加入桌面檔案",null,(_,_)=>PickDesktop(basket));menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("移除分類，圖示顯示回桌面",null,(_,_)=>DeleteBasket(basket));
         // ToolStrip raises Closed before dispatching the clicked item's action.
@@ -473,6 +482,42 @@ internal sealed class App : ApplicationContext
         Manager.Exiting=true;tray.Visible=false;
         if(Theme.ErrorOwner==Manager)Theme.ErrorOwner=null;
         foreach(var w in windows.Values)w.Dispose();windows.Clear();
+        Sharing.Dispose();
         Application.RemoveMessageFilter(wakeFilter);tray.Dispose();debounce.Dispose();idle.Dispose();displayDebounce.Dispose();Icons.Dispose();layout.Dispose();Manager.Close();ExitThread();
+    }
+    internal async void StartSharing()
+    {
+        if(Sharing.CanImportLegacy){Manager.SetStatus("找到 PocketDrop 資料 · 在「共享與裝置」複製匯入可沿用手機配對。");return;}
+        try{await Sharing.EnsureStartedAsync();}
+        catch(Exception ex){Manager.SetStatus("共享尚未啟動："+ex.Message,true);}
+    }
+    internal void ShowSharingSettings()
+    {
+        ShowManager();using var dialog=new SharingDialog(this);dialog.ShowDialog(Manager);
+    }
+    internal async Task AddSharedPaths(Basket basket,string[] paths)
+    {
+        try
+        {
+            var result=await Sharing.InvokeAsync("files_add",new{paths});
+            if(!Store.State.Baskets.Contains(basket))return;
+            // Only accepted files are visually classified; originals remain at their exact path.
+            foreach(var path in result["accepted"]!.Values<string>())Store.Add(basket,path!);
+            Sharing.Accept(result["state"]!);
+            if(Store.State.Enabled)ApplyLayout();Refresh(basket.Id);
+            var errors=result["rejected"]!;
+            Manager.SetStatus(errors.Any()?string.Join("；",errors.Select(e=>(string?)e["name"]+"："+(string?)e["error"])):"已加入共享 · 原檔路徑保留，其他裝置按需下載",errors.Any());
+        }
+        catch(Exception ex){Manager.SetStatus("共享檔案失敗："+ex.Message,true);}
+    }
+    async Task TransferSharedToLocal(Basket target,Entry[] entries,Entry[] sharedEntries)
+    {
+        try
+        {
+            await Sharing.InvokeAsync("unshare_paths",new{paths=sharedEntries.Select(e=>e.Path).ToArray()});
+            if(!Store.State.Baskets.Contains(target))return;
+            foreach(var entry in entries)Store.Transfer(target,entry);Refresh(target.Id);
+        }
+        catch(Exception ex){Manager.SetStatus("移出共享失敗："+ex.Message,true);}
     }
 }

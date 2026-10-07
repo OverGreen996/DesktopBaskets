@@ -31,6 +31,8 @@ public sealed class Basket
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "新分類";
+    public string Kind {get;set;}="local";
+    [Newtonsoft.Json.JsonIgnore] public bool Shared=>Kind=="share";
     public int X { get; set; }
     public int Y { get; set; }
     public int Width { get; set; } = Grid.DefaultWidth;

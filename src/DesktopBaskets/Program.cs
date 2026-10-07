@@ -16,6 +16,9 @@ internal static class Program
         try
         {
             if(!autoStart)try{using var desktop=new DesktopShell();Grid.Configure(desktop.Spacing);}catch{ /* default native-sized grid remains available for diagnostics */ }
+            if(args.Contains("--sharing-test")){Write(report,Verification.SharingTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
+            if(args.Contains("--share-ui-demo")){Verification.SharingDemo(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"));return 0;}
+            if(args.Contains("--share-settings-ui-demo")||args.Contains("--share-qr-ui-demo")){Verification.SharingSettingsDemo(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"),args.Contains("--share-qr-ui-demo"));return 0;}
             if(args.Contains("--startup-test")){Write(report,Verification.StartupTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--display-test")){Write(report,Verification.DisplayTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--startup-ui-test")){Write(report,Verification.StartupTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"),true));return 0;}
