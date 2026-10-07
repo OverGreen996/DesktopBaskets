@@ -16,6 +16,8 @@ internal static class Program
         {
             try{using var desktop=new DesktopShell();Grid.Configure(desktop.Spacing);}catch{ /* default native-sized grid remains available for diagnostics */ }
             if(args.Contains("--self-test")){Write(report,Verification.SelfTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
+            if(args.Contains("--arrangement-test")){Write(report,Verification.ArrangementTest());return 0;}
+            if(args.Contains("--arrangement-diagnose")){Write(report,Verification.ArrangementDiagnose());return 0;}
             if(args.Contains("--diagnose")){Write(report,Verification.Diagnose());return 0;}
             if(args.Contains("--repair-desktop")){using var desktop=new DesktopShell();desktop.RepairInput();Write(report,new{Passed=desktop.Interactive});return 0;}
             if(args.Contains("--restore-backup")){Write(report,Verification.RestoreBackup(Value(args,"--restore-backup")!));return 0;}
@@ -75,6 +77,7 @@ internal static partial class Verification
     {
         using var shell=new DesktopShell();var icons=shell.ReadIcons();
         try {return new{Passed=true,Host=shell.Host.ToInt64(),List=shell.List.ToInt64(),shell.Origin,shell.Spacing,shell.Flags,shell.Interactive,Count=icons.Count,
+            AutoArrangeEnabled=(shell.Flags&1)!=0,SnapToGridEnabled=(shell.Flags&4)!=0,GridPositions=icons.Select(i=>i.Position).OrderBy(p=>p.X).ThenBy(p=>p.Y).ToArray(),
             Screens=Screen.AllScreens.Select(s=>new{s.DeviceName,s.WorkingArea}).ToArray(),Dpi=Native.DpiDiagnostic(shell.List)};}
         finally{foreach(var icon in icons)icon.Dispose();}
     }

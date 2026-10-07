@@ -8,7 +8,10 @@ internal static partial class Verification
     {
         // Real Explorer verification must not race an enabled production organizer.
         var userStore=new Store();
-        Require(!userStore.State.Enabled,"Pause the existing organizer before native refresh verification.");
+        if(Mutex.TryOpenExisting("Local\\DesktopBaskets_"+Environment.UserName,out var production))
+        {
+            using(production)Require(!userStore.State.Enabled,"Pause the existing organizer before native refresh verification.");
+        }
         string data=Path.Combine(root,"refresh-test",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(data);
         using var shell=new DesktopShell();var original=shell.ReadIcons();uint flags=shell.Flags;
         File.WriteAllText(Path.Combine(data,"baseline-state.json"),JsonCodec.Serialize(new State{OriginalAutoArrange=(flags&1)!=0,OriginalSnapToGrid=(flags&4)!=0,
@@ -43,6 +46,9 @@ internal static partial class Verification
             finally{foreach(var i in created)i.Dispose();}
             var store=new Store(Path.Combine(data,"config"));store.State.Baskets.Add(basket);
             app=new App(store,true);app.Toggle();Pump(500);
+            var packed=shell.ReadIcons();
+            try{for(int i=0;i<paths.Length;i++)cells[i]=packed.Single(icon=>icon.Key==paths[i]).Position;}
+            finally{foreach(var icon in packed)icon.Dispose();}
             var frame=app.DesktopWindows.Single();var frameHandle=frame.Handle;var glassHandle=frame.GlassHandle;
             int frameVisibility=frame.NativeVisibilityChanges,glassVisibility=frame.GlassVisibilityChanges;
             app.AddPaths(basket,new[]{paths[0]});Pump(500);

@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.4.16"
+  #define AppVersion "0.4.17"
 #endif
 #ifndef PayloadDir
   #define PayloadDir "..\build\stage"

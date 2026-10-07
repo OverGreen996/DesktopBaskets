@@ -1,0 +1,84 @@
+{
+  "Version": "0.4.17",
+  "VerifiedDate": "2026-10-07",
+  "Checks": [
+    {
+      "Check": "self-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "arrangement-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "selection-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "context-routing-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "lock-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "chrome-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "virtual-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "thumbnail-test",
+      "Passed": true,
+      "ExitCode": 0
+    }
+  ],
+  "NativeRefresh": {
+    "Passed": true,
+    "VacancyFilledInNativeOrder": true,
+    "NativeSelectionCleared": true,
+    "ThreeExplorerRefreshesPassed": true,
+    "EventDrivenRepair": true,
+    "DesktopEventsRelevant": 406,
+    "NoSelfTriggeredEventLoop": true,
+    "OriginalFilePathsUnchanged": true,
+    "AddingFileKeepsFrameAndGlassVisible": true,
+    "AddingFilePreservesBothWindowHandles": true,
+    "AddingFileUpdatesObjectCount": true,
+    "DragReturnDisplaysNativeIconNearDrop": true,
+    "DragReturnRemovesVisualMembership": true,
+    "DragReturnPreservesFileContents": true,
+    "DesktopPositionsAndFlagsRestored": true
+  },
+  "Installation": {
+    "ExitCode": 0,
+    "Version": "0.4.17.0",
+    "SettingsPreserved": true,
+    "BinaryMatchesTestedBuild": true
+  },
+  "UserDesktopAfterInstall": {
+    "Passed": true,
+    "ReadOnly": true,
+    "VisibleIcons": 51,
+    "ClassifiedIcons": 28,
+    "PlannedMoves": 0,
+    "NativeSpacing": "76, 99",
+    "GridAnchors": [
+      "14, 2"
+    ],
+    "NoBasketOverlap": true,
+    "StableAfterRepair": true
+  },
+  "BasketMembershipPathsAndGeometryPreserved": true,
+  "AddedIdlePolling": false
+}

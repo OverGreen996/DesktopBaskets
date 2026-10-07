@@ -214,6 +214,52 @@ public static class LayoutPlanner
     // Explorer spacing already includes its label area. Adjacent native cells may
     // share our extra basket-clearance gutter without overlapping each other.
     public static Rectangle Cell(Point p,Size spacing)=>new(p,spacing);
+    public static Point GridAnchor(IReadOnlyList<LayoutIcon> reference,Rectangle area,Size spacing)
+    {
+        var local=reference.Where(i=>area.Contains(i.Position)).Select(i=>i.Position).ToArray();
+        int Phase(IEnumerable<int> values,int step,int fallback)
+        {
+            var groups=values.Select(n=>((n%step)+step)%step).GroupBy(n=>n).OrderByDescending(g=>g.Count()).ThenBy(g=>g.Key).ToArray();
+            return groups.Length==0?fallback:groups[0].Key;
+        }
+        // Explorer's actual positions reveal the native grid phase, including
+        // its icon padding. Do not invent a second grid with extra cell gaps.
+        return new Point(area.Left+Phase(local.Select(p=>p.X-area.Left),spacing.Width,Math.Max(0,(spacing.Width-48)/2)),
+            area.Top+Phase(local.Select(p=>p.Y-area.Top),spacing.Height,2));
+    }
+    public static Dictionary<string,Point> Compact(IReadOnlyList<LayoutIcon> icons,IReadOnlyList<Rectangle> baskets,
+        IReadOnlyList<Rectangle> workAreas,Size spacing,IReadOnlyList<LayoutIcon>? gridReference=null)
+    {
+        var result=new Dictionary<string,Point>(StringComparer.OrdinalIgnoreCase);
+        if(icons.Count==0)return result;
+        if(workAreas.Count==0)throw new InvalidOperationException("沒有可用的桌面工作區。");
+        spacing=new Size(Math.Max(48,spacing.Width),Math.Max(64,spacing.Height));
+        int Monitor(Point p)
+        {
+            for(int i=0;i<workAreas.Count;i++)if(workAreas[i].Contains(p))return i;
+            return Enumerable.Range(0,workAreas.Count).OrderBy(i=>
+            {
+                var area=workAreas[i];double dx=p.X-MathEx.Clamp(p.X,area.Left,area.Right-1),dy=p.Y-MathEx.Clamp(p.Y,area.Top,area.Bottom-1);
+                return dx*dx+dy*dy;
+            }).First();
+        }
+        var groups=icons.Select((icon,index)=>new{Icon=icon,Index=index,Monitor=Monitor(icon.Position)}).GroupBy(i=>i.Monitor);
+        foreach(var group in groups)
+        {
+            var area=workAreas[group.Key];var start=GridAnchor(gridReference??icons,area,spacing);
+            var ordered=group.OrderBy(i=>i.Icon.Position.X).ThenBy(i=>i.Icon.Position.Y).ThenBy(i=>i.Index).Select(i=>i.Icon).ToArray();
+            int index=0;
+            for(int x=start.X;x+spacing.Width<=area.Right&&index<ordered.Length;x+=spacing.Width)
+            for(int y=start.Y;y+spacing.Height<=area.Bottom&&index<ordered.Length;y+=spacing.Height)
+            {
+                var point=new Point(x,y);
+                if(baskets.Any(b=>b.IntersectsWith(Footprint(point,spacing))))continue;
+                var icon=ordered[index++];if(icon.Position!=point)result.Add(icon.Key,point);
+            }
+            if(index<ordered.Length)throw new InvalidOperationException("桌面空間不足：請縮小整理籃、分類更多圖示，或減少整理籃。這次位置沒有套用。");
+        }
+        return result;
+    }
     public static Dictionary<string,Point> FillVacancies(IReadOnlyList<LayoutIcon> icons,IEnumerable<Point> vacancies,
         IReadOnlyList<Rectangle> baskets,IReadOnlyList<Rectangle> workAreas,Size spacing)
     {

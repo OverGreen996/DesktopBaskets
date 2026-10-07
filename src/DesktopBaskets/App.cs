@@ -326,7 +326,7 @@ internal sealed class App : ApplicationContext
         {
             if(!Directory.Exists(root))continue;
             var watcher=new FileSystemWatcher(root){NotifyFilter=NotifyFilters.FileName|NotifyFilters.DirectoryName|NotifyFilters.LastWrite|NotifyFilters.Size,SynchronizingObject=Manager};
-            watcher.Created+=(_,_)=>ScheduleCheck();watcher.Deleted+=(_,_)=>ScheduleCheck();
+            watcher.Created+=(_,_)=>ScheduleCheck(true);watcher.Deleted+=(_,_)=>ScheduleCheck(true);
             watcher.Changed+=(_,change)=>
             {
                 Icons.Invalidate(change.FullPath);
@@ -343,7 +343,7 @@ internal sealed class App : ApplicationContext
                     {entry.Path=change.FullPath+entry.Path.Substring(change.OldFullPath.Length);updated=true;}
                 }
                 foreach(var backup in Store.State.Icons.Where(b=>string.Equals(b.Key,change.OldFullPath,StringComparison.OrdinalIgnoreCase)))backup.Key=change.FullPath;
-                if(updated){Store.Save();Refresh();}ScheduleCheck();
+                if(updated){Store.Save();Refresh();}ScheduleCheck(true);
             };
             watcher.Error+=(_,_)=>ScheduleCheck();watcher.EnableRaisingEvents=true;watchers.Add(watcher);
         }
@@ -368,7 +368,8 @@ internal sealed class App : ApplicationContext
                 blocked=(refresh&&Store.State.Icons.Any(b=>icons.Any(i=>i.Key==b.Key&&i.Position!=new Point(b.LastX,b.LastY))))||icons.Any(i=>assigned.Contains(i.Key)
                     ?Native.PhysicalScreens().Any(s=>layout.Shell.ToView(s.Bounds).IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing)))
                     :rects.Any(r=>r.IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing))))
-                    ||Store.State.Icons.Any(b=>b.Hidden&&!assigned.Contains(b.Key));
+                    ||Store.State.Icons.Any(b=>b.Hidden&&!assigned.Contains(b.Key))
+                    ||(refresh&&layout.NeedsCompaction(icons));
                 if(!blocked){layout.Shell.CleanAssignedSelection(icons,assigned);if(!refresh)layout.RememberUserPositions(icons);}
             }
             finally {foreach(var i in icons)i.Dispose();}
