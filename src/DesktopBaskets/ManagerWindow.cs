@@ -69,9 +69,10 @@ internal sealed class ManagerWindow : ModernWindow
         };
         baskets.SelectedIndexChanged+=(_,_)=>{if(!loading)RefreshEntries();};
         baskets.DoubleClick+=(_,_)=>{if(Selected is Basket b)app.EditBasket(b);};
-        var leftActions=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=132};
+        var leftActions=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=176};
         leftActions.Controls.Add(Theme.Button("分類設定",(_,_)=>{if(Selected is Basket b)app.EditBasket(b);}));
         leftActions.Controls.Add(Theme.Button("移除分類",(_,_)=>{if(Selected is Basket b)app.DeleteBasket(b);}));
+        leftActions.Controls.Add(Theme.Button("移至螢幕",(_,_)=>{if(Selected is Basket b)app.ShowScreenMenu(b);}));
         leftActions.Controls.Add(Theme.Button("開啟設定資料夾",(_,_)=>Theme.Try(()=>Theme.Open(app.Store.Root))));
         left.Controls.Add(baskets);left.Controls.Add(leftActions);
         var startupPanel=new Panel{Dock=DockStyle.Bottom,Height=82,Padding=new Padding(0,8,0,0)};
@@ -168,7 +169,7 @@ internal sealed class ManagerWindow : ModernWindow
     protected override void WndProc(ref Message m)
     {
         if(m.Msg==TaskbarCreated)BeginInvoke(new Action(app.Reconnect));
-        else if(m.Msg==0x7E)BeginInvoke(new Action(app.DisplayChanged));
+        else if((m.Msg==0x7E||m.Msg==0x1A)&&!Exiting)app.ScheduleDisplayChanged();
         base.WndProc(ref m);
     }
 }

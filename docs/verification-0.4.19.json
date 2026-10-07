@@ -1,0 +1,70 @@
+{
+  "Version": "0.4.19",
+  "VerifiedDate": "2026-10-08",
+  "Checks": [
+    {
+      "Check": "display-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "startup-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "self-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "arrangement-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "selection-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "context-routing-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "lock-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "chrome-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "thumbnail-test",
+      "Passed": true,
+      "ExitCode": 0
+    }
+  ],
+  "DisplayRecovery": {
+    "Passed": true,
+    "Assertions": 41,
+    "TransientSmallWorkAreaHandled": true,
+    "NegativeCoordinateScreens": true,
+    "CrossScreenPlacement": true,
+    "DisconnectedMonitorFallback": true,
+    "ReconnectRestoresHome": true,
+    "RecoveryPersists": true,
+    "LockPreserved": true,
+    "OriginalPathsPreserved": true,
+    "PhysicalMonitorCount": 2
+  },
+  "InstalledVerificationPending": true,
+  "PhysicalCrossScreenMouseTestPending": true,
+  "AddedIdlePolling": false,
+  "DisplayNotificationsDebounced": true,
+  "DisplayRetryLimit": 8,
+  "UserMonitorDisconnectPerformed": false
+}

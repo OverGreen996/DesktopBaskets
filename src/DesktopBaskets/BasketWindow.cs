@@ -190,22 +190,31 @@ internal sealed class BasketWindow : Form
     void StartDrag(MouseEventArgs e,bool resize,Control? source=null)
     {
         if(e.Button!=MouseButtons.Left||Basket.Locked||resize&&Basket.Collapsed)return;
-        before=Basket.ScreenBounds;preview=before;dragStart=Cursor.Position;
+        before=Basket.ScreenBounds;preview=before;dragStart=Native.PhysicalCursor;
         moving=!resize;resizing=resize;
         if(resize&&source==null)resizeEdge=Edge.Right|Edge.Bottom;
         dragControl=source??(resize?footer:header);if(resize&&dragControl==menuButton)suppressMenuClick=true;dragControl.Capture=true;
     }
     void MoveDrag(MouseEventArgs e)
     {
+        using var dpi=new Native.PhysicalDpiScope();
         if(!moving&&!resizing)return;
-        if(outline)ControlPaint.DrawReversibleFrame(preview,Color.White,FrameStyle.Dashed);
-        var delta=new Size(Cursor.Position.X-dragStart.X,Cursor.Position.Y-dragStart.Y);
+        if(outline)ControlPaint.DrawReversibleFrame(preview,Color.White,FrameStyle.Dashed);outline=false;
+        var cursor=Native.PhysicalCursor;var delta=new Size(cursor.X-dragStart.X,cursor.Y-dragStart.Y);
         if(moving)preview=app.Magnetize(Basket,new Rectangle(before.Location+delta,before.Size));
         else
         {
             int w=before.Width+((resizeEdge&Edge.Right)!=0?delta.Width:(resizeEdge&Edge.Left)!=0?-delta.Width:0);
             int h=before.Height+((resizeEdge&Edge.Bottom)!=0?delta.Height:(resizeEdge&Edge.Top)!=0?-delta.Height:0);
-            var size=Grid.FitProportional(before.Size,new Size(w,h),Screen.FromPoint(Cursor.Position).WorkingArea.Size);
+            Size size;
+            try
+            {
+                var area=DisplayLayout.At(cursor,Native.DisplayScreens()).WorkingArea;
+                if(area.Width<Grid.MinWidth||area.Height<Grid.MinHeight)return;
+                size=Grid.FitProportional(before.Size,new Size(w,h),area.Size);
+            }
+            catch(Exception ex)when(ex is InvalidOperationException||ex is System.ComponentModel.Win32Exception)
+            {CancelDrag();return;}
             preview=new Rectangle((resizeEdge&Edge.Left)!=0?before.Right-size.Width:before.Left,
                 (resizeEdge&Edge.Top)!=0?before.Bottom-size.Height:before.Top,size.Width,size.Height);
         }
@@ -215,11 +224,12 @@ internal sealed class BasketWindow : Form
     {
         if(!moving&&!resizing)return;
         var target=preview;var wasResize=resizing;CancelDrag();
-        app.Place(Basket,target,wasResize);
+        app.Place(Basket,target,wasResize,Native.PhysicalCursor);
     }
     void CancelLostCapture() { if((moving||resizing)&&dragControl?.Capture!=true)CancelDrag(); }
     void CancelDrag()
     {
+        using var dpi=new Native.PhysicalDpiScope();
         if(outline)ControlPaint.DrawReversibleFrame(preview,Color.White,FrameStyle.Dashed);
         outline=false;moving=false;resizing=false;if(dragControl!=null)dragControl.Capture=false;dragControl=null;
     }

@@ -17,6 +17,7 @@ internal static class Program
         {
             if(!autoStart)try{using var desktop=new DesktopShell();Grid.Configure(desktop.Spacing);}catch{ /* default native-sized grid remains available for diagnostics */ }
             if(args.Contains("--startup-test")){Write(report,Verification.StartupTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
+            if(args.Contains("--display-test")){Write(report,Verification.DisplayTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--startup-ui-test")){Write(report,Verification.StartupTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"),true));return 0;}
             if(args.Contains("--self-test")){Write(report,Verification.SelfTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--arrangement-test")){Write(report,Verification.ArrangementTest());return 0;}

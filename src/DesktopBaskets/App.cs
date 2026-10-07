@@ -12,6 +12,9 @@ internal sealed class App : ApplicationContext
     readonly NotifyIcon tray;
     readonly System.Windows.Forms.Timer debounce=new(){Interval=300};
     readonly System.Windows.Forms.Timer idle=new(){Interval=30000};
+    readonly System.Windows.Forms.Timer displayDebounce=new(){Interval=750};
+    bool displaySuspended;
+    int displayRetries;
     readonly WakeFilter wakeFilter;
     public bool IsStandby {get;private set;}
     public const int StandbyAfterSeconds=30;
@@ -44,6 +47,7 @@ internal sealed class App : ApplicationContext
         tray=new NotifyIcon{Icon=Theme.AppIcon,Text="Desktop Baskets · 桌面分類",Visible=!smoke,ContextMenuStrip=menu};
         tray.DoubleClick+=(_,_)=>ShowManager();
         debounce.Tick+=(_,_)=>{debounce.Stop();CheckDesktop();};
+        displayDebounce.Tick+=(_,_)=>{displayDebounce.Stop();DisplayChanged();if(displaySuspended&&!quitting&&Store.State.Enabled&&displayRetries++<7)displayDebounce.Start();};
         idle.Tick+=(_,_)=>EnterStandby();idle.Start();
         if(!smoke)WatchDesktop();
         if(autoStart)_=Manager.Handle;else Manager.Show();
@@ -51,7 +55,7 @@ internal sealed class App : ApplicationContext
         {
             try {layout.Restore();} // recover interrupted session before establishing a new one
             catch(Exception ex){Store.State.Enabled=false;Store.Save();ShowManager();Manager.SetStatus("上次的桌面位置還原失敗，備份仍保留。",true);Theme.Error(ex);}
-            if(Store.State.Enabled)try{ApplyLayout();}catch(Exception ex){ShowManager();Manager.SetStatus("籃框開啟失敗，設定與原始檔案保留。",true);Theme.Error(ex);}
+            if(Store.State.Enabled){DisplayChanged();if(displaySuspended)ScheduleDisplayChanged();}
             else Manager.SetStatus("準備就緒 · 新增分類會自動放上桌面。關閉管理視窗後可從系統匣開啟。");
         }
     }
@@ -131,20 +135,46 @@ internal sealed class App : ApplicationContext
         ShowManager();var old=CopyGeometry(basket);
         using var dialog=new BasketDialog(basket);
         if(dialog.ShowDialog(Manager)!=DialogResult.OK)return;
-        try {if(Store.State.Enabled)ApplyLayout();Store.Save();Refresh(basket.Id);}
+        try {if(basket.ScreenBounds!=old.ScreenBounds){basket.DisplayHome=null;basket.Monitor=DisplayLayout.At(new Point(basket.X+basket.Width/2,basket.Y+basket.ScreenBounds.Height/2),Native.DisplayScreens()).DeviceName;}if(Store.State.Enabled)ApplyLayout();Store.Save();Refresh(basket.Id);}
         catch(Exception ex){RestoreGeometry(basket,old);RecoverLayout();Refresh();Theme.Error(ex);}
     }
-    static Basket CopyGeometry(Basket b)=>new(){Name=b.Name,X=b.X,Y=b.Y,Width=b.Width,Height=b.Height,Collapsed=b.Collapsed,Locked=b.Locked,Monitor=b.Monitor,OpacityPercent=b.OpacityPercent};
-    static void RestoreGeometry(Basket b,Basket old){b.Name=old.Name;b.X=old.X;b.Y=old.Y;b.Width=old.Width;b.Height=old.Height;b.Collapsed=old.Collapsed;b.Locked=old.Locked;b.Monitor=old.Monitor;b.OpacityPercent=old.OpacityPercent;}
-    public void Place(Basket basket,Rectangle target,bool resized)
+    static Basket CopyGeometry(Basket b)=>new(){Name=b.Name,X=b.X,Y=b.Y,Width=b.Width,Height=b.Height,Collapsed=b.Collapsed,Locked=b.Locked,Monitor=b.Monitor,OpacityPercent=b.OpacityPercent,DisplayHome=b.DisplayHome};
+    static void RestoreGeometry(Basket b,Basket old){b.Name=old.Name;b.X=old.X;b.Y=old.Y;b.Width=old.Width;b.Height=old.Height;b.Collapsed=old.Collapsed;b.Locked=old.Locked;b.Monitor=old.Monitor;b.OpacityPercent=old.OpacityPercent;b.DisplayHome=old.DisplayHome;}
+    public void Place(Basket basket,Rectangle target,bool resized,Point? destination=null)
     {
         if(basket.Locked)return;
-        var old=CopyGeometry(basket);var screen=Screen.FromRectangle(target);var area=screen.WorkingArea;
-        if(resized){var size=Grid.FitProportional(old.ScreenBounds.Size,target.Size,area.Size);basket.Width=size.Width;basket.Height=size.Height;}
-        basket.X=MathEx.Clamp(target.X,area.Left,area.Right-basket.Width);
-        basket.Y=MathEx.Clamp(target.Y,area.Top,area.Bottom-(basket.Collapsed?Grid.HeaderFor(basket.Width):basket.Height));basket.Monitor=screen.DeviceName;
-        try {ApplyLayout();Store.Save();Refresh(basket.Id);}
+        var old=CopyGeometry(basket);
+        try
+        {
+            var screen=DisplayLayout.At(destination??new Point(target.X+target.Width/2,target.Y+target.Height/2),Native.DisplayScreens());
+            if(resized)target=new Rectangle(target.Location,Grid.FitProportional(new Size(old.Width,old.Height),target.Size,screen.WorkingArea.Size));
+            if(!DisplayLayout.TryPlace(basket,target,screen,out var placement)){Manager.SetStatus("目標螢幕的工作區太小，籃框保留在原位。",true);return;}
+            placement.Apply(basket);basket.DisplayHome=null;
+            if(Store.State.Enabled)ApplyLayout();Store.Save();Refresh(basket.Id);
+        }
         catch(Exception ex){RestoreGeometry(basket,old);RecoverLayout();Refresh();Theme.Error(ex);}
+    }
+    public void MoveToScreen(Basket basket,DisplayScreen screen)
+    {
+        if(basket.Locked){Manager.SetStatus("請先解鎖籃框，再移到其他螢幕。");return;}
+        var target=new Rectangle(screen.WorkingArea.Left+24,screen.WorkingArea.Top+24,basket.Width,basket.ScreenBounds.Height);
+        if(!DisplayLayout.TryPlace(basket,target,screen,out var placement)||!DisplayLayout.FindSpace(basket,placement,screen.WorkingArea,Store.State.Baskets.Where(b=>b!=basket).Select(b=>b.ScreenBounds).ToArray()))
+        {Manager.SetStatus("目標螢幕沒有足夠空間，籃框保留在原位。",true);return;}
+        Place(basket,placement.Bounds(basket.Collapsed),false,new Point(screen.Bounds.Left+screen.Bounds.Width/2,screen.Bounds.Top+screen.Bounds.Height/2));
+    }
+    internal ToolStripMenuItem ScreenMenu(Basket basket)
+    {
+        var item=new ToolStripMenuItem("移至螢幕"){Enabled=!basket.Locked};
+        foreach(var screen in Native.DisplayScreens())
+        {
+            var label=screen.DeviceName.Replace("\\\\.\\DISPLAY","螢幕 ")+(screen.Primary?"（主螢幕）":"")+$" · {screen.WorkingArea.Width} × {screen.WorkingArea.Height}";
+            item.DropDownItems.Add(label,null,(_,_)=>MoveToScreen(basket,screen));
+        }
+        return item;
+    }
+    public void ShowScreenMenu(Basket basket)
+    {
+        Theme.Try(()=>{var menu=new ContextMenuStrip();menu.Items.Add(ScreenMenu(basket));menu.Closed+=(_,_)=>Manager.BeginInvoke(new Action(()=>menu.Dispose()));menu.Show(Native.PhysicalCursor);});
     }
     public Rectangle Magnetize(Basket basket,Rectangle proposed)=>Magnet.Move(proposed,Store.State.Baskets.Where(b=>b!=basket).Select(b=>b.ScreenBounds));
     public void Collapse(Basket basket)
@@ -270,6 +300,7 @@ internal sealed class App : ApplicationContext
         var menu=new ContextMenuStrip();menu.Items.Add("分類設定／重新命名",null,(_,_)=>EditBasket(basket));
         menu.Items.Add(basket.Locked?"解鎖位置與大小":"鎖定位置與大小",null,(_,_)=>ToggleLock(basket));
         menu.Items.Add(basket.Collapsed?"展開":"收合",null,(_,_)=>Collapse(basket)).Enabled=!basket.Locked;
+        menu.Items.Add(ScreenMenu(basket));
         menu.Items.Add("加入桌面檔案",null,(_,_)=>PickDesktop(basket));menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("移除分類，圖示顯示回桌面",null,(_,_)=>DeleteBasket(basket));
         // ToolStrip raises Closed before dispatching the clicked item's action.
@@ -279,14 +310,14 @@ internal sealed class App : ApplicationContext
     {
         if(Store.State.Enabled)
         {
-            foreach(var window in windows.Values)window.Hide();events?.Dispose();events=null;debounce.Stop();
+            displayDebounce.Stop();displaySuspended=false;foreach(var window in windows.Values)window.Hide();events?.Dispose();events=null;debounce.Stop();
             try{layout.Restore();Store.State.Enabled=false;Store.Save();Refresh();Manager.SetStatus("已暫停 · 桌面圖示已還原 · 原始檔案路徑全程保持不變");}
             catch(Exception ex){Manager.SetStatus("還原未完成，位置備份仍保留。",true);Theme.Error(ex);}
         }
         else
         {
             Store.State.Enabled=true;
-            try {ApplyLayout();Store.Save();Refresh();}
+            try {DisplayChanged();if(displaySuspended)ScheduleDisplayChanged();Store.Save();Refresh();}
             catch(Exception ex){Store.State.Enabled=false;RecoverLayout();Refresh();Theme.Error(ex);}
         }
     }
@@ -319,6 +350,7 @@ internal sealed class App : ApplicationContext
             if(events!=null){completedEventsSeen+=events.Seen;completedEventsRelevant+=events.Relevant;events.Dispose();}events=new DesktopEvents(layout.Shell,ScheduleCheck);
             if(watchers.Count==0)WatchDesktop();
             Manager.SetStatus("原始路徑不變  /  格數縮放 · 磁吸對齊 · 框外桌面可正常操作");
+            displaySuspended=false;
         }
         catch {foreach(var window in windows.Values)window.Hide();throw;}
         finally {applying=false;}
@@ -330,7 +362,7 @@ internal sealed class App : ApplicationContext
     }
     void ScheduleCheck(bool refreshed=false)
     {
-        if(applying||quitting||!Store.State.Enabled)return;
+        if(applying||quitting||displaySuspended||!Store.State.Enabled)return;
         desktopRefreshed|=refreshed;
         debounce.Stop();debounce.Start();
     }
@@ -366,7 +398,7 @@ internal sealed class App : ApplicationContext
     {
         DesktopCheckCount++;
         using var dpi=new Native.PhysicalDpiScope();
-        if(!Store.State.Enabled||applying)return;
+        if(!Store.State.Enabled||applying||displaySuspended)return;
         if(fileMenuOpen||fileMenuPending)return; // Completion schedules one deferred check.
         try
         {
@@ -393,22 +425,39 @@ internal sealed class App : ApplicationContext
     }
     public void Reconnect()
     {
+        if(quitting)return;
         events?.Dispose();events=null;
         foreach(var w in windows.Values)w.Dispose();windows.Clear();
         foreach(var watcher in watchers)watcher.Dispose();watchers.Clear();
-        if(Store.State.Enabled)RecoverLayout();
+        if(Store.State.Enabled)ScheduleDisplayChanged();
     }
+    public void ScheduleDisplayChanged(){if(quitting)return;displayRetries=0;displayDebounce.Stop();displayDebounce.Start();}
     public void DisplayChanged()
     {
-        foreach(var b in Store.State.Baskets)
+        if(quitting||!Store.State.Enabled)return;
+        try{UpdateDisplays(Native.DisplayScreens());}
+        catch(Exception ex){SuspendForDisplay("螢幕尚未就緒，原位置與大小已保留："+ex.Message);}
+    }
+    internal void UpdateDisplays(IReadOnlyList<DisplayScreen> screens,bool applyDesktop=true)
+    {
+        if(!DisplayLayout.TryRecover(Store.State.Baskets,screens,out var moves))
+        {SuspendForDisplay("螢幕工作區暫時無法容納籃框；桌面圖示已還原，原位置與大小保留，等待螢幕恢復。");return;}
+        var previous=Store.State.Baskets.ToDictionary(b=>b.Id,CopyGeometry);
+        try
         {
-            var screen=Screen.AllScreens.FirstOrDefault(s=>s.DeviceName==b.Monitor)??Screen.PrimaryScreen!;
-            if(b.Width>screen.WorkingArea.Width||b.Height>screen.WorkingArea.Height)
-            {var fit=Grid.FitProportional(new Size(b.Width,b.Height),new Size(b.Width,b.Height),screen.WorkingArea.Size);b.Width=fit.Width;b.Height=fit.Height;}
-            b.X=MathEx.Clamp(b.X,screen.WorkingArea.Left,screen.WorkingArea.Right-b.Width);
-            b.Y=MathEx.Clamp(b.Y,screen.WorkingArea.Top,screen.WorkingArea.Bottom-(b.Collapsed?Grid.HeaderFor(b.Width):b.Height));
+            foreach(var move in moves){move.Placement.Apply(move.Basket);move.Basket.DisplayHome=move.Home;}
+            if(applyDesktop)ApplyLayout();displaySuspended=false;Store.Save();Refresh();
         }
-        if(Store.State.Enabled)RecoverLayout();Refresh();
+        catch
+        {
+            foreach(var basket in Store.State.Baskets)RestoreGeometry(basket,previous[basket.Id]);Store.Save();throw;
+        }
+    }
+    void SuspendForDisplay(string reason)
+    {
+        foreach(var window in windows.Values)window.Hide();debounce.Stop();
+        try{layout.Restore();}catch(Exception ex){reason+=" 還原備份仍保留："+ex.Message;}
+        displaySuspended=true;Manager.SetStatus(reason,true);
     }
     public void Refresh(string? selected=null)
     {
@@ -417,13 +466,13 @@ internal sealed class App : ApplicationContext
     }
     public void Quit()
     {
-        if(quitting)return;quitting=true;debounce.Stop();idle.Stop();events?.Dispose();events=null;
+        if(quitting)return;quitting=true;debounce.Stop();idle.Stop();displayDebounce.Stop();events?.Dispose();events=null;
         foreach(var w in windows.Values)w.Hide();
         try{layout.Restore();}
         catch(Exception ex){quitting=false;Manager.SetStatus("還原未完成。位置備份已保留，可重試退出。",true);Theme.Error(ex);return;}
         Manager.Exiting=true;tray.Visible=false;
         if(Theme.ErrorOwner==Manager)Theme.ErrorOwner=null;
         foreach(var w in windows.Values)w.Dispose();windows.Clear();
-        Application.RemoveMessageFilter(wakeFilter);tray.Dispose();debounce.Dispose();idle.Dispose();Icons.Dispose();layout.Dispose();Manager.Close();ExitThread();
+        Application.RemoveMessageFilter(wakeFilter);tray.Dispose();debounce.Dispose();idle.Dispose();displayDebounce.Dispose();Icons.Dispose();layout.Dispose();Manager.Close();ExitThread();
     }
 }

@@ -40,6 +40,7 @@ public sealed class Basket
     public bool Collapsed { get; set; }
     public int OpacityPercent {get;set;}=68;
     public int SavedChromeHeight {get;set;}
+    public BasketPlacement? DisplayHome {get;set;}
     public List<Entry> Entries { get; set; } = new();
     [Newtonsoft.Json.JsonIgnore] public Rectangle ScreenBounds => new(X, Y, Width, Collapsed ? Grid.HeaderFor(Width) : Height);
     [Newtonsoft.Json.JsonIgnore] public int Columns => Math.Max(2, (Width - Grid.Side) / Grid.CellWidth);

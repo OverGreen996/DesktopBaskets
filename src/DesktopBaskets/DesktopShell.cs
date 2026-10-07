@@ -24,9 +24,19 @@ internal static class Native
     }
     [StructLayout(LayoutKind.Sequential)] struct RECT {public int Left,Top,Right,Bottom;public Rectangle Rectangle=>Rectangle.FromLTRB(Left,Top,Right,Bottom);}
     [StructLayout(LayoutKind.Sequential)] struct MONITORINFO {public int Size;public RECT Bounds,Work;public uint Flags;}
+    [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)] struct MONITORINFOEX {public int Size;public RECT Bounds,Work;public uint Flags;[MarshalAs(UnmanagedType.ByValTStr,SizeConst=32)] public string DeviceName;}
     delegate bool MonitorCallback(IntPtr monitor,IntPtr dc,IntPtr rect,IntPtr data);
     [DllImport("user32.dll")] static extern bool EnumDisplayMonitors(IntPtr dc,IntPtr clip,MonitorCallback callback,IntPtr data);
     [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern bool GetMonitorInfo(IntPtr monitor,ref MONITORINFO info);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="GetMonitorInfoW")] static extern bool GetMonitorInfoEx(IntPtr monitor,ref MONITORINFOEX info);
+    internal static IReadOnlyList<DisplayScreen> DisplayScreens()
+    {
+        using var dpi=new PhysicalDpiScope();var result=new List<DisplayScreen>();
+        if(!EnumDisplayMonitors(IntPtr.Zero,IntPtr.Zero,(monitor,dc,rect,data)=>
+        {var info=new MONITORINFOEX{Size=Marshal.SizeOf<MONITORINFOEX>()};if(!GetMonitorInfoEx(monitor,ref info))return false;result.Add(new DisplayScreen(info.DeviceName,info.Bounds.Rectangle,info.Work.Rectangle,(info.Flags&1)!=0));return true;},IntPtr.Zero)||result.Count==0)
+            throw new System.ComponentModel.Win32Exception("Windows 無法讀取螢幕工作區。");
+        return result;
+    }
     public static IReadOnlyList<(Rectangle Bounds,Rectangle WorkingArea)> PhysicalScreens()
     {
         using var dpi=new PhysicalDpiScope();var result=new List<(Rectangle,Rectangle)>();
