@@ -28,6 +28,8 @@ internal static class Program
             if(args.Contains("--probe")){Write(report,Verification.Probe(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--standby-probe")){Write(report,Verification.StandbyProbe(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--virtual-test")){Write(report,Verification.VirtualTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--thumbnail-test")){Write(report,Verification.ThumbnailTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
+            if(args.Contains("--thumbnail-ui-test")){Write(report,Verification.ThumbnailTest(Value(args,"--work")??AppContext.BaseDirectory,true));return 0;}
             if(args.Contains("--chrome-test")){Write(report,Verification.ChromeTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--shell-menu-test")){Write(report,Verification.ShellMenuTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}
             if(args.Contains("--context-routing-test")){Write(report,Verification.ContextRoutingTest(Value(args,"--work")??AppContext.BaseDirectory));return 0;}

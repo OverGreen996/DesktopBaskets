@@ -83,45 +83,6 @@ internal static class Theme
     public static void Try(Action action) { try { action(); } catch(Exception ex) { Error(ex); } }
 }
 
-internal sealed class IconCache : IDisposable
-{
-    [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)] struct SHFILEINFO
-    {
-        public IntPtr Icon; public int Index; public uint Attributes;
-        [MarshalAs(UnmanagedType.ByValTStr,SizeConst=260)] public string DisplayName;
-        [MarshalAs(UnmanagedType.ByValTStr,SizeConst=80)] public string TypeName;
-    }
-    [DllImport("shell32.dll",CharSet=CharSet.Unicode)] static extern IntPtr SHGetFileInfo(string path,uint attributes,out SHFILEINFO info,uint size,uint flags);
-    [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr icon);
-    readonly Dictionary<string,Bitmap> cache=new(StringComparer.OrdinalIgnoreCase);
-    readonly Queue<string> order=new();
-    public int Count => cache.Count;
-    public Bitmap Get(string path)
-    {
-        if(cache.TryGetValue(path,out var bitmap)) return bitmap;
-        SHGetFileInfo(path,0,out var info,(uint)Marshal.SizeOf<SHFILEINFO>(),0x100);
-        if(info.Icon!=IntPtr.Zero)
-        {
-            try { using var icon=Icon.FromHandle(info.Icon); bitmap=icon.ToBitmap(); }
-            finally { DestroyIcon(info.Icon); }
-        }
-        else bitmap=SystemIcons.Application.ToBitmap();
-        while(cache.Count>=64&&order.Count>0)
-        {
-            string oldest=order.Dequeue();if(cache.TryGetValue(oldest,out var old)){cache.Remove(oldest);old.Dispose();}
-        }
-        cache[path]=bitmap;order.Enqueue(path); return bitmap;
-    }
-    public void Prune(IEnumerable<string> paths)
-    {
-        var live=new HashSet<string>(paths,StringComparer.OrdinalIgnoreCase);
-        foreach(var key in cache.Keys.Where(k=>!live.Contains(k)).ToArray()) { cache[key].Dispose(); cache.Remove(key); }
-        var remaining=order.Where(k=>cache.ContainsKey(k)).ToArray();order.Clear();foreach(var key in remaining)order.Enqueue(key);
-    }
-    public void Clear(){foreach(var bitmap in cache.Values)bitmap.Dispose();cache.Clear();order.Clear();}
-    public void Dispose()=>Clear();
-}
-
 internal sealed class BasketDialog : Form
 {
     readonly TextBox name=new();

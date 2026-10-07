@@ -18,10 +18,10 @@ jobs:
       - name: Build portable app
         shell: pwsh
         run: ./scripts/build.ps1
-      - name: Run layout, selection, context-routing, lock and window-caption checks
+      - name: Run layout, selection, context-routing, lock, caption and thumbnail checks
         shell: pwsh
         run: |
-          foreach ($check in @('self-test','selection-test','context-routing-test','lock-test','chrome-test')) {
+          foreach ($check in @('self-test','selection-test','context-routing-test','lock-test','chrome-test','thumbnail-test')) {
             $report = Join-Path $env:RUNNER_TEMP ($check+'.json')
             $process = Start-Process -FilePath './build/stage/DesktopBaskets.exe' -ArgumentList @(('--'+$check),'--work',('"'+$env:RUNNER_TEMP+'"'),'--report',('"'+$report+'"')) -Wait -PassThru -WindowStyle Hidden
             if (Test-Path $report) { Get-Content $report }

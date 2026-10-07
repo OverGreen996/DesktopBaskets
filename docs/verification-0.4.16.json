@@ -1,0 +1,83 @@
+{
+  "Version": "0.4.16",
+  "VerifiedDate": "2026-10-07",
+  "Checks": [
+    {
+      "Check": "self-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "selection-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "context-routing-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "lock-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "chrome-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "virtual-test",
+      "Passed": true,
+      "ExitCode": 0
+    },
+    {
+      "Check": "thumbnail-test",
+      "Passed": true,
+      "ExitCode": 0
+    }
+  ],
+  "Thumbnail": {
+    "Passed": true,
+    "Formats": [
+      "PNG",
+      "JPEG",
+      "BMP",
+      "GIF",
+      "TIFF"
+    ],
+    "AspectRatioPreserved": true,
+    "TransparentPngPreserved": true,
+    "RealBasketViewportPreview": true,
+    "OriginalPathsAndBytesPreserved": true,
+    "NoFileLocks": true,
+    "CorruptAndMissingFilesFallback": true,
+    "EditedFileReloads": true,
+    "CacheLimit": 64,
+    "PendingLimit": 64,
+    "StandbyDropsLateResults": true,
+    "WarmRepaintsDoNotStartWorker": true,
+    "WorkerExitsWhenIdle": true
+  },
+  "Mouse": {
+    "RealBasketViewport": true,
+    "ImageSelected": true,
+    "NativeDarkFileMenuRemainedVisible": true,
+    "TestUsesIsolatedSampleFiles": true
+  },
+  "Installed": true,
+  "AddedIdlePolling": false,
+  "Installation": {
+    "InstallerExitCode": 0,
+    "InstalledVersion": "0.4.16.0",
+    "InstalledMatchesTestedBinary": true,
+    "InstallerPreservedState": true
+  },
+  "InstalledMouse": {
+    "RealBasketViewport": true,
+    "TransparentImageSelected": true,
+    "PreviewVisible": true
+  },
+  "OriginalBasketMembershipPathsAndGeometryPreserved": true
+}

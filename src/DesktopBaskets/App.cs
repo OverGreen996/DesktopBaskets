@@ -29,6 +29,7 @@ internal sealed class App : ApplicationContext
     public App(Store store,bool smoke=false)
     {
         Store=store;layout=new DesktopLayout(store);Manager=new ManagerWindow(this);
+        Icons.ImageReady+=path=>{foreach(var window in windows.Values)if(!window.IsDisposed)window.Viewport.RefreshImage(path);};
         Theme.ErrorOwner=Manager;
         wakeFilter=new WakeFilter(this);Application.AddMessageFilter(wakeFilter);
         MainForm=Manager;
@@ -324,8 +325,13 @@ internal sealed class App : ApplicationContext
         foreach(var root in new[]{Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory)}.Distinct())
         {
             if(!Directory.Exists(root))continue;
-            var watcher=new FileSystemWatcher(root){NotifyFilter=NotifyFilters.FileName|NotifyFilters.DirectoryName,SynchronizingObject=Manager};
+            var watcher=new FileSystemWatcher(root){NotifyFilter=NotifyFilters.FileName|NotifyFilters.DirectoryName|NotifyFilters.LastWrite|NotifyFilters.Size,SynchronizingObject=Manager};
             watcher.Created+=(_,_)=>ScheduleCheck();watcher.Deleted+=(_,_)=>ScheduleCheck();
+            watcher.Changed+=(_,change)=>
+            {
+                Icons.Invalidate(change.FullPath);
+                if(!IsStandby)foreach(var window in windows.Values)if(!window.IsDisposed)window.Viewport.RefreshImage(change.FullPath);
+            };
             watcher.Renamed+=(_,change)=>
             {
                 bool updated=false;

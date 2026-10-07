@@ -204,7 +204,14 @@ internal sealed class BasketViewport : Control
             bool chosen=selection.Contains(entry.Id);
             if(index==hover||chosen){using var fill=new SolidBrush(chosen?Color.FromArgb(58,Theme.Accent):Theme.Raised);e.Graphics.FillRectangle(fill,tile);}
             if(chosen){using var border=new Pen(Color.FromArgb(145,Theme.Accent));e.Graphics.DrawRectangle(border,tile.X,tile.Y,tile.Width-1,tile.Height-1);}
-            e.Graphics.DrawImage(app.Icons.Get(entry.Path),new Rectangle(tile.X+(tile.Width-32)/2,tile.Y+8,32,32));
+            var image=app.Icons.Get(entry.Path,app.Manager);
+            var imageBox=app.Icons.HasThumbnail(entry.Path)
+                ?new Rectangle(tile.X+(tile.Width-48)/2,tile.Y+4,48,36)
+                :new Rectangle(tile.X+(tile.Width-32)/2,tile.Y+8,32,32);
+            var interpolation=e.Graphics.InterpolationMode;
+            e.Graphics.InterpolationMode=System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            e.Graphics.DrawImage(image,IconCache.Fit(image.Size,imageBox));
+            e.Graphics.InterpolationMode=interpolation;
             TextRenderer.DrawText(e.Graphics,entry.DisplayName,Font,new Rectangle(tile.X+3,tile.Y+44,tile.Width-6,Math.Max(20,tile.Height-44)),Theme.Text,TextFormatFlags.HorizontalCenter|TextFormatFlags.WordBreak|TextFormatFlags.EndEllipsis|TextFormatFlags.PreserveGraphicsClipping);
             if(Focused&&index==selected){using var focus=new Pen(Theme.Accent){DashStyle=System.Drawing.Drawing2D.DashStyle.Dot};e.Graphics.DrawRectangle(focus,tile);}
         }
@@ -217,6 +224,15 @@ internal sealed class BasketViewport : Control
         e.Graphics.Restore(drawing);
     }
     protected override void OnResize(EventArgs e){base.OnResize(e);AutoScrollPosition=new Point(0,scrollOffset);}
+    public void RefreshImage(string path)
+    {
+        for(int index=0;index<basket.Entries.Count;index++)
+            if(string.Equals(basket.Entries[index].Path,path,StringComparison.OrdinalIgnoreCase))
+            {
+                var rect=Rectangle.Intersect(ItemBounds(index),ContentRectangle);
+                if(!rect.IsEmpty)Invalidate(rect);
+            }
+    }
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);Focus();
