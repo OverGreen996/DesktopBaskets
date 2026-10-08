@@ -15,13 +15,13 @@
   <img src="https://img.shields.io/badge/Windows-x64-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="Windows x64">
   <img src="https://img.shields.io/badge/.NET_Framework-4.8-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt=".NET Framework 4.8">
   <img src="https://img.shields.io/badge/UI-Native_WinForms-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt="原生 WinForms 介面">
-  <img src="https://img.shields.io/badge/Release-0.5.1-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.5.1">
+  <img src="https://img.shields.io/badge/Release-0.5.2-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.5.2">
 </p>
 
 <p align="center">
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.1/DesktopBaskets-Setup-0.5.1-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.1/DesktopBaskets-Portable-0.5.1-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.1/DesktopBaskets-Mobile-2.0.0-Android.apk"><img src="https://img.shields.io/badge/手機_APK-Android_2.0.0-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Android 2.0.0 APK"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.2/DesktopBaskets-Setup-0.5.2-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.2/DesktopBaskets-Portable-0.5.2-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.2/DesktopBaskets-Mobile-2.0.0-Android.apk"><img src="https://img.shields.io/badge/手機_APK-Android_2.0.0-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Android 2.0.0 APK"></a>
 </p>
 
 <p align="center">
@@ -35,7 +35,13 @@
   <img src="docs/images/features.svg" alt="原位保留、框選整理、玻璃工作區" width="100%">
 </p>
 
-## 0.5.1 · 桌面整理，也能與手機分享
+## 0.5.2 · 更新後，分類依然在原位
+
+修正暫時找不到檔案就清掉分類的問題。更新重建捷徑、檔案短暫不可用時，
+保留原籃子、項目身分與順序；相同路徑恢復後自動收回。真正刪除的檔案不會被
+重建，主動移出或重新分籃也不會被撤銷，不新增常駐輪詢。
+
+[分類恢復機制與 21 項驗證](docs/MEMBERSHIP_RECOVERY.md)
 
 Windows **0.5.1** 改善跨螢幕拖曳：保留透明落點預覽，使用實體螢幕座標，
 預覽與放開後位置一致。預覽只在拖曳期間存在，不攔截滑鼠，也不新增待機輪詢。
@@ -167,7 +173,7 @@ PNG、JPEG、BMP、GIF、TIFF 已通過縮圖驗證，透明 PNG 保留透明背
 
 ## 開始使用
 
-1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.5.1-x64.exe**。
+1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.5.2-x64.exe**。
 2. 執行安裝程式。預設只安裝到目前 Windows 帳號，不需要系統管理員權限。
 3. 從開始功能表開啟 **Desktop Baskets**，新增「遊戲」、「工作」、「雜項」等分類。
 4. 把桌面項目拖進框內，雙擊即可開啟。
