@@ -17,6 +17,7 @@ internal static class Program
         {
             if(!autoStart)try{using var desktop=new DesktopShell();Grid.Configure(desktop.Spacing);}catch{ /* default native-sized grid remains available for diagnostics */ }
             if(args.Contains("--drag-preview-test")){Write(report,Verification.DragPreviewTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
+            if(args.Contains("--membership-test")){Write(report,Verification.MembershipTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--drag-preview-ui-demo")){Verification.DragPreviewDemo(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"));return 0;}
             if(args.Contains("--sharing-test")){Write(report,Verification.SharingTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--share-ui-demo")){Verification.SharingDemo(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"));return 0;}

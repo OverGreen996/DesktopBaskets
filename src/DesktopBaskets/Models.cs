@@ -129,7 +129,18 @@ public sealed class State
     public bool? OriginalAutoArrange { get; set; }
     public bool? OriginalSnapToGrid { get; set; }
     public List<Basket> Baskets { get; set; } = new();
+    public List<UnavailableEntry> UnavailableEntries {get;set;}=new();
     public List<IconBackup> Icons { get; set; } = new();
+}
+
+// File.Exists can be false while an installer replaces a shortcut, a drive is
+// offline, or permissions are unavailable. Preserve membership independently
+// of availability; only explicit basket operations relinquish ownership.
+public sealed class UnavailableEntry
+{
+    public string BasketId {get;set;}="";
+    public int Index {get;set;}
+    public Entry Entry {get;set;}=new();
 }
 
 public sealed class Store
@@ -153,6 +164,8 @@ public sealed class Store
             if(State.Baskets.SelectMany(b=>b.Entries).Any(e=>e.OriginalPath!=null||e.Pending!=null))
                 throw new InvalidDataException("舊版資料含搬檔紀錄，為保護原始路徑已停止載入。請先還原舊版資料。");
             State.Version=2;
+            State.UnavailableEntries??=new();
+            RestoreAvailableEntries();
             foreach(var basket in State.Baskets)
             {
                 int columns=Math.Max(2,(basket.Width-State.GridSide)/Math.Max(48,State.GridWidth));
@@ -193,20 +206,56 @@ public sealed class Store
         if(File.Exists(StatePath))File.Replace(temp,StatePath,StatePath+".bak");else File.Move(temp,StatePath);
     }
     public static bool Exists(string path)=>File.Exists(path)||Directory.Exists(path);
+    public bool RestoreAvailableEntries()
+    {
+        bool changed=false;
+        foreach(var saved in State.UnavailableEntries.OrderBy(e=>e.Index).ToArray())
+        {
+            var basket=State.Baskets.FirstOrDefault(b=>b.Id==saved.BasketId);
+            if(basket==null){State.UnavailableEntries.Remove(saved);changed=true;continue;}
+            if(!Exists(saved.Entry.Path))continue;
+            if(!State.Baskets.SelectMany(b=>b.Entries).Any(e=>e.Id==saved.Entry.Id||string.Equals(e.Path,saved.Entry.Path,StringComparison.OrdinalIgnoreCase)))
+                basket.Entries.Insert(MathEx.Clamp(saved.Index,0,basket.Entries.Count),saved.Entry);
+            State.UnavailableEntries.Remove(saved);changed=true;
+        }
+        return changed;
+    }
+    public bool RefreshAvailability(Func<Entry,bool> inspect)
+    {
+        bool changed=RestoreAvailableEntries();
+        foreach(var basket in State.Baskets)
+        {
+            var entries=basket.Entries.ToArray();
+            var previous=State.UnavailableEntries.Where(e=>e.BasketId==basket.Id).OrderBy(e=>e.Index).ToArray();
+            for(int index=0;index<entries.Length;index++)
+            {
+                var entry=entries[index];if(!inspect(entry)||Exists(entry.Path))continue;
+                int originalIndex=index;
+                foreach(var earlier in previous)if(earlier.Index<=originalIndex)originalIndex++;
+                if(!State.UnavailableEntries.Any(e=>e.Entry.Id==entry.Id))
+                    State.UnavailableEntries.Add(new UnavailableEntry{BasketId=basket.Id,Index=originalIndex,Entry=entry});
+                basket.Entries.Remove(entry);changed=true;
+            }
+        }
+        return changed;
+    }
     public Entry Add(Basket basket,string path)
     {
         path=System.IO.Path.GetFullPath(path);
         if(!Exists(path))throw new FileNotFoundException("找不到檔案。",path);
         var existing=State.Baskets.SelectMany(b=>b.Entries).FirstOrDefault(e=>string.Equals(e.Path,path,StringComparison.OrdinalIgnoreCase));
         if(existing!=null){Transfer(basket,existing);return existing;}
-        var entry=new Entry{Name=System.IO.Path.GetFileName(path),Path=path};
+        var saved=State.UnavailableEntries.FirstOrDefault(e=>string.Equals(e.Entry.Path,path,StringComparison.OrdinalIgnoreCase));
+        var entry=saved?.Entry??new Entry{Name=System.IO.Path.GetFileName(path),Path=path};
+        State.UnavailableEntries.RemoveAll(e=>e.Entry.Id==entry.Id||string.Equals(e.Entry.Path,path,StringComparison.OrdinalIgnoreCase));
         basket.Entries.Add(entry);Save();return entry;
     }
-    public void Remove(Basket basket,Entry entry){basket.Entries.Remove(entry);Save();}
-    public void Delete(Basket basket){State.Baskets.Remove(basket);Save();}
+    public void Remove(Basket basket,Entry entry){basket.Entries.Remove(entry);State.UnavailableEntries.RemoveAll(e=>e.Entry.Id==entry.Id);Save();}
+    public void Delete(Basket basket){State.Baskets.Remove(basket);State.UnavailableEntries.RemoveAll(e=>e.BasketId==basket.Id);Save();}
     public void Transfer(Basket target,Entry entry)
     {
         foreach(var basket in State.Baskets)basket.Entries.Remove(entry);
+        State.UnavailableEntries.RemoveAll(e=>e.Entry.Id==entry.Id);
         target.Entries.Add(entry);Save();
     }
 }

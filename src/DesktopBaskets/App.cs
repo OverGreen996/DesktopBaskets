@@ -80,6 +80,7 @@ internal sealed class App : ApplicationContext
         idle.Stop();idle.Start();
         if(!IsStandby)return;
         IsStandby=false;tray.Text="Desktop Baskets · 桌面分類";
+        if(Store.State.UnavailableEntries.Count>0)ScheduleCheck();
         foreach(var window in windows.Values)window.RefreshStatus();
         Manager.SetStatus(Store.State.Enabled?"已喚醒 · 桌面圖示自動避讓 · 格數縮放／滾輪捲動":"已喚醒 · 新增分類會自動放上桌面");
     }
@@ -227,7 +228,7 @@ internal sealed class App : ApplicationContext
     public void RemoveEntries(Basket basket,IEnumerable<Entry> entries)
     {
         var ids=new HashSet<string>(entries.Select(e=>e.Id));if(ids.Count==0)return;
-        Theme.Try(()=>{basket.Entries.RemoveAll(e=>ids.Contains(e.Id));Store.Save();if(Store.State.Enabled)ApplyLayout();Refresh(basket.Id);});
+        Theme.Try(()=>{basket.Entries.RemoveAll(e=>ids.Contains(e.Id));Store.State.UnavailableEntries.RemoveAll(e=>ids.Contains(e.Entry.Id));Store.Save();if(Store.State.Enabled)ApplyLayout();Refresh(basket.Id);});
     }
     public bool CanReturnToDesktop(Entry entry)=>new[]{Store.DesktopRoot,Store.PublicDesktopRoot}
         .Any(root=>string.Equals(Path.GetDirectoryName(entry.Path),root.TrimEnd(Path.DirectorySeparatorChar),StringComparison.OrdinalIgnoreCase));
@@ -309,9 +310,7 @@ internal sealed class App : ApplicationContext
     internal void RefreshMissingSelection(IEnumerable<Entry> entries)
     {
         var ids=new HashSet<string>(entries.Select(e=>e.Id));
-        bool changed=false;
-        foreach(var basket in Store.State.Baskets)
-            changed|=basket.Entries.RemoveAll(e=>(ids.Contains(e.Id)||CanReturnToDesktop(e))&&!Store.Exists(e.Path))>0;
+        bool changed=Store.RefreshAvailability(e=>ids.Contains(e.Id)||CanReturnToDesktop(e));
         if(changed){Store.Save();Refresh();}
     }
     public ContextMenuStrip BasketMenu(Basket basket)
@@ -401,7 +400,7 @@ internal sealed class App : ApplicationContext
             watcher.Renamed+=(_,change)=>
             {
                 bool updated=false;
-                foreach(var entry in Store.State.Baskets.SelectMany(b=>b.Entries))
+                foreach(var entry in Store.State.Baskets.SelectMany(b=>b.Entries).Concat(Store.State.UnavailableEntries.Select(e=>e.Entry)))
                 {
                     if(string.Equals(entry.Path,change.OldFullPath,StringComparison.OrdinalIgnoreCase))
                     {entry.Path=change.FullPath;entry.Name=System.IO.Path.GetFileName(change.FullPath);updated=true;}
