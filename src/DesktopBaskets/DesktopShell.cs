@@ -10,6 +10,14 @@ internal static class Native
     [DllImport("user32.dll")] static extern IntPtr GetWindowDpiAwarenessContext(IntPtr window);
     [DllImport("user32.dll")] static extern int GetAwarenessFromDpiAwarenessContext(IntPtr context);
     [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr window,out RECT rect);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window,out RECT rect);
+    [DllImport("user32.dll")] internal static extern IntPtr GetForegroundWindow();
+    internal static Rectangle PhysicalWindowBounds(IntPtr window)
+    {
+        using var scope=new PhysicalDpiScope();
+        if(!GetWindowRect(window,out var rect))throw new System.ComponentModel.Win32Exception("無法讀取預覽視窗位置。");
+        return rect.Rectangle;
+    }
     public static object DpiDiagnostic(IntPtr window)
     {
         using var scope=new PhysicalDpiScope();GetClientRect(window,out var client);

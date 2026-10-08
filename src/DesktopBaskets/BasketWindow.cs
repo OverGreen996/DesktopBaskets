@@ -28,11 +28,17 @@ internal sealed class BasketWindow : Form
     Point dragStart;
     Rectangle before,preview;
     bool moving,resizing;
+    internal bool IsDragging=>moving||resizing;
+    DragPreviewWindow? dragPreview;
+    BasketPlacement? dropPlacement;
+    internal event Action<Rectangle,bool>? PreviewChanged;
+    internal event Action? DragFinished;
+    internal Rectangle? PreviewNativeBounds=>dragPreview is {IsHandleCreated:true}?Native.PhysicalWindowBounds(dragPreview.Handle):null;
+    internal bool PreviewVisible=>dragPreview is {IsHandleCreated:true}&&Native.IsWindowVisible(dragPreview.Handle);
     [Flags] enum Edge {None=0,Left=1,Right=2,Top=4,Bottom=8}
     Edge resizeEdge;
     Control? dragControl;
     public int ResizeEdgesAvailable=>Basket.Locked||Basket.Collapsed?0:8;
-    bool outline;
     public BasketWindow(App app,Basket basket)
     {
         this.app=app; Basket=basket;
@@ -211,48 +217,71 @@ internal sealed class BasketWindow : Form
     void StartDrag(MouseEventArgs e,bool resize,Control? source=null)
     {
         if(e.Button!=MouseButtons.Left||Basket.Locked||resize&&Basket.Collapsed)return;
-        before=Basket.ScreenBounds;preview=before;dragStart=Native.PhysicalCursor;
+        using var dpi=new Native.PhysicalDpiScope();
+        CancelDrag();before=Basket.ScreenBounds;preview=before;
         moving=!resize;resizing=resize;
         if(resize&&source==null)resizeEdge=Edge.Right|Edge.Bottom;
-        dragControl=source??(resize?footer:header);if(resize&&dragControl==menuButton)suppressMenuClick=true;dragControl.Capture=true;
+        dragControl=source??(resize?footer:header);
+        var start=new Native.POINT(e.Location);
+        if(!Native.ClientToScreen(dragControl.Handle,ref start)){CancelDrag();return;}
+        // Use the press message position. Reading the latest cursor here loses
+        // the anchor when a queued press is dispatched after a fast mouse move.
+        dragStart=start.Point;
+        if(resize&&dragControl==menuButton)suppressMenuClick=true;dragControl.Capture=true;
+        UpdatePreview(dragStart);
     }
     void MoveDrag(MouseEventArgs e)
     {
-        using var dpi=new Native.PhysicalDpiScope();
         if(!moving&&!resizing)return;
-        if(outline)ControlPaint.DrawReversibleFrame(preview,Color.White,FrameStyle.Dashed);outline=false;
-        var cursor=Native.PhysicalCursor;var delta=new Size(cursor.X-dragStart.X,cursor.Y-dragStart.Y);
-        if(moving)preview=app.Magnetize(Basket,new Rectangle(before.Location+delta,before.Size));
+        UpdatePreview(Native.PhysicalCursor);
+    }
+    void UpdatePreview(Point cursor)
+    {
+        using var dpi=new Native.PhysicalDpiScope();
+        var delta=new Size(cursor.X-dragStart.X,cursor.Y-dragStart.Y);
+        Rectangle proposed;
+        if(moving)proposed=app.Magnetize(Basket,new Rectangle(before.Location+delta,before.Size));
         else
         {
             int w=before.Width+((resizeEdge&Edge.Right)!=0?delta.Width:(resizeEdge&Edge.Left)!=0?-delta.Width:0);
             int h=before.Height+((resizeEdge&Edge.Bottom)!=0?delta.Height:(resizeEdge&Edge.Top)!=0?-delta.Height:0);
-            Size size;
-            try
-            {
-                var area=DisplayLayout.At(cursor,Native.DisplayScreens()).WorkingArea;
-                if(area.Width<Grid.MinWidth||area.Height<Grid.MinHeight)return;
-                size=Grid.FitProportional(before.Size,new Size(w,h),area.Size);
-            }
-            catch(Exception ex)when(ex is InvalidOperationException||ex is System.ComponentModel.Win32Exception)
-            {CancelDrag();return;}
-            preview=new Rectangle((resizeEdge&Edge.Left)!=0?before.Right-size.Width:before.Left,
-                (resizeEdge&Edge.Top)!=0?before.Bottom-size.Height:before.Top,size.Width,size.Height);
+            proposed=new Rectangle(before.Location,new Size(w,h));
         }
-        ControlPaint.DrawReversibleFrame(preview,Color.White,FrameStyle.Dashed);outline=true;
+        try
+        {
+            var screen=DisplayLayout.At(cursor,Native.DisplayScreens());
+            bool valid=DisplayLayout.TryDrop(Basket,proposed,resizing,screen,out var placement);
+            if(valid&&resizing)
+            {
+                // Keep the opposite corner anchored, then clamp exactly as a drop.
+                var anchored=new Rectangle((resizeEdge&Edge.Left)!=0?before.Right-placement.Width:before.Left,
+                    (resizeEdge&Edge.Top)!=0?before.Bottom-placement.Height:before.Top,placement.Width,placement.Height);
+                valid=DisplayLayout.TryPlace(Basket,anchored,screen,out placement);
+            }
+            dropPlacement=valid?placement:null;
+            preview=valid?placement.Bounds(Basket.Collapsed):new Rectangle(proposed.Location,new Size(Math.Max(Grid.MinWidth,proposed.Width),Math.Max(Grid.MinHeight,proposed.Height)));
+            dragPreview??=new DragPreviewWindow();dragPreview.ShowAt(preview,valid);
+            PreviewChanged?.Invoke(preview,valid);
+        }
+        catch(Exception ex)when(ex is InvalidOperationException||ex is System.ComponentModel.Win32Exception)
+        {CancelDrag();}
     }
     void EndDrag()
     {
         if(!moving&&!resizing)return;
-        var target=preview;var wasResize=resizing;CancelDrag();
-        app.Place(Basket,target,wasResize,Native.PhysicalCursor);
+        // Include a final cursor sample even if mouse moves were coalesced.
+        UpdatePreview(Native.PhysicalCursor);
+        var placement=dropPlacement;CancelDrag();
+        if(placement!=null)app.PlacePlanned(Basket,placement);
+        else app.Manager.SetStatus("目標螢幕的工作區無法容納籃框，保留在原位。",true);
+        DragFinished?.Invoke();
     }
     void CancelLostCapture() { if((moving||resizing)&&dragControl?.Capture!=true)CancelDrag(); }
     void CancelDrag()
     {
-        using var dpi=new Native.PhysicalDpiScope();
-        if(outline)ControlPaint.DrawReversibleFrame(preview,Color.White,FrameStyle.Dashed);
-        outline=false;moving=false;resizing=false;if(dragControl!=null)dragControl.Capture=false;dragControl=null;
+        moving=false;resizing=false;dropPlacement=null;
+        if(dragControl!=null)dragControl.Capture=false;dragControl=null;
+        dragPreview?.Dispose();dragPreview=null;
     }
     protected override void Dispose(bool disposing) { if(disposing){if(shared!=null)app.Sharing.Changed-=RefreshStatus;CancelDrag();help.Dispose();glass?.Dispose();}base.Dispose(disposing); }
     sealed class LockButton : Button

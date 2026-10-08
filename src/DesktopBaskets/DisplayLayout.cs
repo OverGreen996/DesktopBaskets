@@ -45,6 +45,16 @@ internal static class DisplayLayout
         result.X=MathEx.Clamp(result.X,screen.WorkingArea.Left,screen.WorkingArea.Right-size.Width);
         result.Y=MathEx.Clamp(result.Y,screen.WorkingArea.Top,screen.WorkingArea.Bottom-(basket.Collapsed?Grid.HeaderFor(size.Width):size.Height));return true;
     }
+    internal static bool TryDrop(Basket basket,Rectangle proposed,bool resized,DisplayScreen screen,out BasketPlacement result)
+    {
+        result=new BasketPlacement();
+        try
+        {
+            if(resized)proposed=new Rectangle(proposed.Location,Grid.FitProportional(new Size(basket.Width,basket.Height),proposed.Size,screen.WorkingArea.Size));
+            return TryPlace(basket,proposed,screen,out result);
+        }
+        catch(InvalidOperationException){return false;}
+    }
     internal static bool FindSpace(Basket basket,BasketPlacement placement,Rectangle area,IReadOnlyList<Rectangle> occupied)
     {
         var bounds=placement.Bounds(basket.Collapsed);if(!occupied.Any(r=>r.IntersectsWith(bounds)))return true;

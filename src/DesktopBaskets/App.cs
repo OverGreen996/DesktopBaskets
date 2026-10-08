@@ -86,7 +86,7 @@ internal sealed class App : ApplicationContext
     public void EnterStandby()
     {
         idle.Stop();if(IsStandby||quitting)return;
-        if(applying||fileMenuOpen||fileMenuPending||windows.Values.Any(w=>w.Viewport.IsSelecting)){idle.Start();return;}
+        if(applying||fileMenuOpen||fileMenuPending||windows.Values.Any(w=>w.IsDragging||w.Viewport.IsSelecting)){idle.Start();return;}
         IsStandby=true;Icons.Clear();
         foreach(var window in windows.Values)window.RefreshStatus();
         tray.Text="Desktop Baskets · 微待命";
@@ -147,12 +147,23 @@ internal sealed class App : ApplicationContext
     public void Place(Basket basket,Rectangle target,bool resized,Point? destination=null)
     {
         if(basket.Locked)return;
-        var old=CopyGeometry(basket);
         try
         {
             var screen=DisplayLayout.At(destination??new Point(target.X+target.Width/2,target.Y+target.Height/2),Native.DisplayScreens());
-            if(resized)target=new Rectangle(target.Location,Grid.FitProportional(new Size(old.Width,old.Height),target.Size,screen.WorkingArea.Size));
-            if(!DisplayLayout.TryPlace(basket,target,screen,out var placement)){Manager.SetStatus("目標螢幕的工作區太小，籃框保留在原位。",true);return;}
+            if(!DisplayLayout.TryDrop(basket,target,resized,screen,out var placement)){Manager.SetStatus("目標螢幕的工作區太小，籃框保留在原位。",true);return;}
+            PlacePlanned(basket,placement);
+        }
+        catch(Exception ex){Theme.Error(ex);}
+    }
+    internal void PlacePlanned(Basket basket,BasketPlacement placement)
+    {
+        if(basket.Locked)return;
+        var old=CopyGeometry(basket);
+        try
+        {
+            var screen=Native.DisplayScreens().FirstOrDefault(s=>s.DeviceName==placement.Monitor);
+            if(screen==null||!screen.WorkingArea.Contains(placement.Bounds(basket.Collapsed)))
+            {Manager.SetStatus("螢幕工作區已變更，籃框保留在原位。",true);return;}
             placement.Apply(basket);basket.DisplayHome=null;
             if(Store.State.Enabled)ApplyLayout();Store.Save();Refresh(basket.Id);
         }
