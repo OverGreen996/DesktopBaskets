@@ -15,12 +15,13 @@
   <img src="https://img.shields.io/badge/Windows-x64-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="Windows x64">
   <img src="https://img.shields.io/badge/.NET_Framework-4.8-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt=".NET Framework 4.8">
   <img src="https://img.shields.io/badge/UI-Native_WinForms-202426?style=flat-square&amp;labelColor=202426&amp;color=bac5ca" alt="原生 WinForms 介面">
-  <img src="https://img.shields.io/badge/Release-0.4.18-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.4.18">
+  <img src="https://img.shields.io/badge/Release-0.5.1-202426?style=flat-square&amp;labelColor=202426&amp;color=fffa00" alt="最新版 0.5.1">
 </p>
 
 <p align="center">
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.18/DesktopBaskets-Setup-0.4.18-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
-  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.4.18/DesktopBaskets-Portable-0.4.18-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.1/DesktopBaskets-Setup-0.5.1-x64.exe"><img src="https://img.shields.io/badge/下載安裝版-Windows_x64-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Windows x64 安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.1/DesktopBaskets-Portable-0.5.1-x64.zip"><img src="https://img.shields.io/badge/免安裝版-ZIP-bac5ca?style=for-the-badge&amp;labelColor=202426" alt="下載 ZIP 免安裝版"></a>
+  <a href="https://github.com/OverGreen996/DesktopBaskets/releases/download/v0.5.1/DesktopBaskets-Mobile-2.0.0-Android.apk"><img src="https://img.shields.io/badge/手機_APK-Android_2.0.0-fffa00?style=for-the-badge&amp;labelColor=202426" alt="下載 Android 2.0.0 APK"></a>
 </p>
 
 <p align="center">
@@ -34,16 +35,18 @@
   <img src="docs/images/features.svg" alt="原位保留、框選整理、玻璃工作區" width="100%">
 </p>
 
-## 0.5.0 共享整合預覽
+## 0.5.1 · 桌面整理，也能與手機分享
 
-本地修正版 **0.5.1** 改善跨螢幕拖曳：保留透明落點預覽，使用實體螢幕座標，
+Windows **0.5.1** 改善跨螢幕拖曳：保留透明落點預覽，使用實體螢幕座標，
 預覽與放開後位置一致。預覽只在拖曳期間存在，不攔截滑鼠，也不新增待機輪詢。
 
-此分支是本地測試版本。Windows 的 PocketDrop 文字、檔案、配對、QR 邀請與 LAN 傳輸正在整合為一個真正的共享籃框；Android 端同步重製為終末地視覺語彙的原生介面。原版下載連結仍指向已發布的 0.4.18。
+新增共享籃框：文字、檔案、配對、QR 邀請與 LAN 傳輸直接整合進桌面。**Android 2.0.0** 同步推出終末地視覺語彙的原生介面，電腦顯示 QR，手機掃碼就能加入。
 
 從籃框「裝置 / QR」顯示邀請，手機直接掃碼連線。本機原檔保留原路徑，其他裝置按需下載，無 WebView2。原 PocketDrop 的配對資料採複製匯入，拒絕覆蓋已有 Room。
 
-[共享功能與接手說明](docs/SHARING.md) · [手機端說明](android/README.md)
+[共享功能與接手說明](docs/SHARING.md) · [手機端說明](android/README.md) · [跨螢幕預覽驗證](docs/DRAG_PREVIEW_FIX.md)
+
+跨螢幕落點已由使用者在雙螢幕確認；共享流程有 31 項檢查，Android 有 18 項自動化測試。實體手機相機與真機傳輸仍待驗證。共享限同一 Wi-Fi／LAN，手機 App 需保持前景；資料夾請先壓縮 ZIP。
 
 <p align="center">
   <img src="docs/images/mobile-text.png" width="28%" alt="手機文字分享">
@@ -164,7 +167,7 @@ PNG、JPEG、BMP、GIF、TIFF 已通過縮圖驗證，透明 PNG 保留透明背
 
 ## 開始使用
 
-1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.4.18-x64.exe**。
+1. 到 [Releases](https://github.com/OverGreen996/DesktopBaskets/releases/latest)，下載 **DesktopBaskets-Setup-0.5.1-x64.exe**。
 2. 執行安裝程式。預設只安裝到目前 Windows 帳號，不需要系統管理員權限。
 3. 從開始功能表開啟 **Desktop Baskets**，新增「遊戲」、「工作」、「雜項」等分類。
 4. 把桌面項目拖進框內，雙擊即可開啟。

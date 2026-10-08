@@ -20,7 +20,7 @@ PocketDrop 協定名稱與憑證驗證沿用，現有 PocketDrop Android 也能�
 - 畫面編號對應頁面；字數、檔案數、配對狀態與版本均為真實資訊。
 - 前景連線、後景停止狀態輪詢與搜尋；下載目錄保留 `Downloads/PocketDrop`。
 
-此本地測試版本使用獨立應用程式 ID `local.desktopbaskets.mobile`，可與原
+此版本使用獨立應用程式 ID `local.desktopbaskets.mobile`，可與原
 PocketDrop 並存，不覆蓋原 App 或配對資料；新 App 需要首次掃碼配對。
 更新僅從 DesktopBaskets GitHub release 讀取，原 PocketDrop 更新不會替換此 App。
 

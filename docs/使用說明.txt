@@ -1,14 +1,14 @@
-安裝版：執行 DesktopBaskets-Setup-0.5.0-x64.exe，僅安裝到目前帳號，不需要系統管理員權限。
+安裝版：執行 DesktopBaskets-Setup-0.5.1-x64.exe，僅安裝到目前帳號，不需要系統管理員權限。
 預設安裝於 %LOCALAPPDATA%\Programs\DesktopBaskets，開始功能表提供啟動與解除安裝。桌面捷徑和登入啟動皆為可選項，預設不勾選。
 安裝、更新、解除安裝前，先從程式選「退出並還原圖示」。解除安裝保留分類設定，不刪除桌面原始檔案。
 
-Desktop Baskets 0.5.0 — Windows 桌面純視覺分類工具
+Desktop Baskets 0.5.1 — Windows 桌面純視覺分類工具
 
 更新：先在舊版程式內選「退出並還原圖示」，再執行本資料夾的 DesktopBaskets.exe。使用相同的本機設定，原有分類會保留。不要同時啟動兩個版本。
 執行 DesktopBaskets.exe，保留同目錄的 .config、Newtonsoft.Json.dll、QRCoder.dll、zxing.dll、DesktopBaskets.Share.exe 與 Assets。
 支援 Windows x64，使用系統 .NET Framework 4.8；不使用瀏覽器引擎。
 
-本次新增：共享籃框（本地測試版）
+本次新增：共享籃框
 分類管理按「＋共享籃框」，文字與檔案可透過同一 LAN 的 Room 分享。
 共享框的「裝置 / QR」→「顯示連線 QR」提供手機掃描的邀請，亦顯示八位驗證碼；有效五分鐘、一次使用。
 手機端 Desktop Baskets Mobile 保留 PocketDrop 協定與配對身分；Windows 不需要同時執行 PocketDrop。
