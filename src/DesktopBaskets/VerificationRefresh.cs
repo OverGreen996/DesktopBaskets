@@ -30,7 +30,7 @@ internal static partial class Verification
         var cells=Enumerable.Range(0,3).Select(i=>new Point(first!.Value.X,first.Value.Y+i*spacing.Height)).ToArray();
         string desktop=Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         var paths=Enumerable.Range(0,3).Select(i=>Path.Combine(desktop,"DesktopBaskets-refresh-"+Guid.NewGuid().ToString("N")+".txt")).ToArray();
-        App? app=null;bool selectedCleared=false,filled=false,stable=false,restored=false,returned=false,frameStable=false;int relevant=0;string diagnostic="";
+        App? app=null;bool selectedCleared=false,filled=false,stable=false,restored=false,returned=false,frameStable=false,manualRefresh=false;int relevant=0;string diagnostic="";
         void Pump(int milliseconds){var watch=Stopwatch.StartNew();while(watch.ElapsedMilliseconds<milliseconds){Application.DoEvents();System.Threading.Thread.Sleep(15);}}
         try
         {
@@ -66,17 +66,17 @@ internal static partial class Verification
                     using var currentShell=new DesktopShell();
                     diagnostic=$"selectedCleared={selectedCleared}; positions={string.Join(" / ",paths.Select(p=>icons.Single(i=>i.Key==p).Position))}; expected={cells[0]} / {cells[1]}; events={app.DesktopEventsRelevant}/{app.DesktopEventsSeen}; list={shell.List}/{currentShell.List}; alive={shell.Alive}; status={app.Manager.StatusText}; flags={shell.Flags}";
                     diagnostic+=$"; checks={app.DesktopCheckCount}; physical={string.Join(" / ",Native.PhysicalScreens().Select(s=>s.Bounds))}; assignedBackup={string.Join(" / ",app.Store.State.Icons.Where(i=>i.Key==paths[0]).Select(i=>$"hidden={i.Hidden},last={i.LastX},{i.LastY}"))}; screens={string.Join(" / ",Screen.AllScreens.Select(s=>s.Bounds))}; assigned={app.Store.State.Baskets.Single().Entries.Single().Path==paths[0]}";
-                    return selectedCleared&&icons.Single(i=>i.Key==paths[1]).Position==cells[0]&&icons.Single(i=>i.Key==paths[2]).Position==cells[1]
+                    return selectedCleared&&icons.Single(i=>i.Key==paths[1]).Position==cells[1]&&icons.Single(i=>i.Key==paths[2]).Position==cells[2]
                         &&!area.IntersectsWith(LayoutPlanner.Footprint(icons[index].Position,spacing))&&paths.All(File.Exists);
                 }
                 finally{foreach(var i in icons)i.Dispose();}
             }
-            filled=CheckNative();Require(filled,"Classifying the selected icon did not fill its native cell or clear selection: "+diagnostic);
+            filled=CheckNative();Require(filled,"Classifying the selected icon changed a neighboring manual position or failed to clear selection: "+diagnostic);
             for(int n=0;n<3;n++)
             {
                 shell.RefreshView();Pump(900);bool okay=CheckNative();var settle=Stopwatch.StartNew();
                 while(!okay&&settle.ElapsedMilliseconds<4000){Pump(200);okay=CheckNative();}
-                Require(okay,"Explorer refresh left a duplicate, selected hidden item, or unfilled cell: "+diagnostic);
+                Require(okay,"Explorer refresh left a duplicate, selected hidden item, or changed a manual position: "+diagnostic);
             }
             relevant=app.DesktopEventsRelevant;Require(relevant>0,"Native Explorer refresh did not exercise the event hook.");
             Pump(500);int settled=app.DesktopEventsRelevant;Pump(500);stable=settled==app.DesktopEventsRelevant;
@@ -95,6 +95,18 @@ internal static partial class Verification
                 Require(returned,"Dragging back to desktop did not unassign, display near the drop, or preserve the original file.");
             }
             finally{foreach(var i in returnedIcons)i.Dispose();}
+            // This file now has a managed-position backup. Moving it manually
+            // then refreshing reproduces the previous saved-position rollback.
+            var manualIcons=shell.ReadIcons();
+            try{shell.Position(manualIcons,new Dictionary<string,Point>{{paths[0],cells[0]}});}
+            finally{foreach(var i in manualIcons)i.Dispose();}
+            for(int n=0;n<3;n++)
+            {
+                shell.RefreshView();Pump(900);var refreshed=shell.ReadIcons();
+                try{manualRefresh=paths.Select((path,index)=>refreshed.Single(i=>i.Key==path).Position==cells[index]).All(v=>v);}
+                finally{foreach(var i in refreshed)i.Dispose();}
+                Require(manualRefresh,"Refresh undid a managed icon's manual position or moved an unaffected neighbor.");
+            }
         }
         finally
         {
@@ -113,7 +125,7 @@ internal static partial class Verification
             finally{foreach(var i in verify)i.Dispose();foreach(var i in original)i.Dispose();}
         }
         Require(restored,"Native refresh verification did not restore the original desktop layout.");
-        return new{Passed=true,VacancyFilledInNativeOrder=filled,NativeSelectionCleared=selectedCleared,ThreeExplorerRefreshesPassed=true,
+        return new{Passed=true,ManualPositionsPreserved=filled,ManagedIconManualPositionSurvivesThreeRefreshes=manualRefresh,NativeSelectionCleared=selectedCleared,ThreeExplorerRefreshesPassed=true,
             EventDrivenRepair=true,DesktopEventsRelevant=relevant,NoSelfTriggeredEventLoop=stable,OriginalFilePathsUnchanged=true,
             AddingFileKeepsFrameAndGlassVisible=frameStable,AddingFilePreservesBothWindowHandles=frameStable,AddingFileUpdatesObjectCount=frameStable,
             DragReturnDisplaysNativeIconNearDrop=returned,DragReturnRemovesVisualMembership=returned,DragReturnPreservesFileContents=returned,DesktopPositionsAndFlagsRestored=restored};

@@ -27,6 +27,7 @@ internal static class Program
             if(args.Contains("--startup-ui-test")){Write(report,Verification.StartupTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification"),true));return 0;}
             if(args.Contains("--self-test")){Write(report,Verification.SelfTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--arrangement-test")){Write(report,Verification.ArrangementTest());return 0;}
+            if(args.Contains("--free-layout-test")){Write(report,Verification.FreeLayoutTest(Value(args,"--work")??Path.Combine(Path.GetTempPath(),"DesktopBasketsVerification")));return 0;}
             if(args.Contains("--arrangement-diagnose")){Write(report,Verification.ArrangementDiagnose());return 0;}
             if(args.Contains("--diagnose")){Write(report,Verification.Diagnose());return 0;}
             if(args.Contains("--repair-desktop")){using var desktop=new DesktopShell();desktop.RepairInput();Write(report,new{Passed=desktop.Interactive});return 0;}
@@ -165,8 +166,8 @@ internal static partial class Verification
             var p=LayoutPlanner.Plan(items,new[]{block},new[]{new Rectangle(0,0,1500,1000)},new Size(70,80));
             var final=items.Select(i=>new LayoutIcon(i.Key,p.TryGetValue(i.Key,out var moved)?moved:i.Position)).ToArray();
             Check(final.All(i=>!block.IntersectsWith(LayoutPlanner.Footprint(i.Position,new Size(70,80)))),"Random layout clearance");
-            Check(final.Select(i=>LayoutPlanner.Footprint(i.Position,new Size(70,80))).SelectMany((r,i)=>final.Skip(i+1).Select(j=>r.IntersectsWith(LayoutPlanner.Footprint(j.Position,new Size(70,80))))).All(v=>!v),"Random layout icon collisions");
-            Check(p.Values.All(v=>new Rectangle(0,0,1500,1000).Contains(LayoutPlanner.Footprint(v,new Size(70,80)))),"Random layout stays on screen");
+            Check(final.Select(i=>LayoutPlanner.Cell(i.Position,new Size(70,80))).SelectMany((r,i)=>final.Skip(i+1).Select(j=>r.IntersectsWith(LayoutPlanner.Cell(j.Position,new Size(70,80))))).All(v=>!v),"Random layout native cell collisions");
+            Check(p.Values.All(v=>new Rectangle(0,0,1500,1000).Contains(LayoutPlanner.Cell(v,new Size(70,80)))),"Random layout stays on screen");
         }
         var snapped=Grid.Snap(new Size(358,237));
         Check((snapped.Width-Grid.Side)%Grid.CellWidth==0&&(snapped.Height-Grid.VerticalFor(snapped.Width))%Grid.CellHeight==0,"Grid snapping");

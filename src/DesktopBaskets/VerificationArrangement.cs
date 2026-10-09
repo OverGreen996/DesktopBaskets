@@ -59,12 +59,12 @@ internal static partial class Verification
                 var backup=store.State.Icons.FirstOrDefault(b=>b.Hidden&&string.Equals(b.Key,i.Key,StringComparison.OrdinalIgnoreCase));
                 return new LayoutIcon(i.Key,backup==null?i.Position:new Point(backup.X,backup.Y));
             }).ToArray();
-            var plan=LayoutPlanner.Compact(visible,baskets,areas,shell.Spacing,reference);
+            var plan=LayoutPlanner.PlanDesktop(visible,baskets,areas,shell.Spacing,store.State.AutoCompactDesktop,false,reference:reference);
             var packed=visible.Select(i=>new LayoutIcon(i.Key,plan.TryGetValue(i.Key,out var p)?p:i.Position)).ToArray();
-            return new{Passed=true,ReadOnly=true,VisibleIcons=visible.Length,ClassifiedIcons=icons.Count-visible.Length,PlannedMoves=plan.Count,
+            return new{Passed=true,ReadOnly=true,AutoCompactDesktop=store.State.AutoCompactDesktop,VisibleIcons=visible.Length,ClassifiedIcons=icons.Count-visible.Length,PlannedMoves=plan.Count,
                 NativeSpacing=shell.Spacing,GridAnchors=areas.Select(a=>LayoutPlanner.GridAnchor(reference,a,shell.Spacing)).ToArray(),
                 NoBasketOverlap=packed.All(i=>!baskets.Any(b=>b.IntersectsWith(LayoutPlanner.Footprint(i.Position,shell.Spacing)))),
-                StableAfterRepair=LayoutPlanner.Compact(packed,baskets,areas,shell.Spacing,reference).Count==0};
+                StableAfterRepair=LayoutPlanner.PlanDesktop(packed,baskets,areas,shell.Spacing,store.State.AutoCompactDesktop,false,reference:reference).Count==0};
         }
         finally{foreach(var icon in icons)icon.Dispose();}
     }

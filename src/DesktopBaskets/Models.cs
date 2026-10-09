@@ -126,6 +126,8 @@ public sealed class State
     public int GridSide {get;set;}=36;
     public int FrameLayoutVersion {get;set;}
     public bool Enabled { get; set; }
+    // Missing in older settings: upgrades also default to free desktop placement.
+    public bool AutoCompactDesktop { get; set; }
     public bool? OriginalAutoArrange { get; set; }
     public bool? OriginalSnapToGrid { get; set; }
     public List<Basket> Baskets { get; set; } = new();
@@ -262,6 +264,28 @@ public sealed class Store
 public record LayoutIcon(string Key, Point Position);
 public static class LayoutPlanner
 {
+    public static bool RequiresAvoidance(IReadOnlyList<LayoutIcon> icons,HashSet<string> assigned,
+        IReadOnlyList<IconBackup> backups,IReadOnlyList<Rectangle> baskets,IReadOnlyList<Rectangle> screens,Size spacing)
+    {
+        return icons.Any(i=>assigned.Contains(i.Key)
+            ?screens.Any(s=>s.IntersectsWith(Footprint(i.Position,spacing)))
+            :baskets.Any(b=>b.IntersectsWith(Footprint(i.Position,spacing))))
+            ||backups.Any(b=>b.Hidden&&!assigned.Contains(b.Key)&&icons.Any(i=>string.Equals(i.Key,b.Key,StringComparison.OrdinalIgnoreCase)));
+    }
+    public static Dictionary<string,Point> PlanDesktop(IReadOnlyList<LayoutIcon> icons,IReadOnlyList<Rectangle> baskets,
+        IReadOnlyList<Rectangle> workAreas,Size spacing,bool autoCompact,bool explicitDrop,HashSet<string>? returning=null,
+        IReadOnlyList<LayoutIcon>? reference=null,IEnumerable<Point>? vacancies=null)
+    {
+        var plan=autoCompact&&!explicitDrop?Compact(icons,baskets,workAreas,spacing,reference):Plan(icons,baskets,workAreas,spacing,returning,reference);
+        if(autoCompact&&explicitDrop&&vacancies!=null)
+        {
+            var current=icons.Select(i=>new LayoutIcon(i.Key,plan.TryGetValue(i.Key,out var p)?p:i.Position)).ToArray();
+            foreach(var move in FillVacancies(current,vacancies,baskets,workAreas,spacing))plan[move.Key]=move.Value;
+        }
+        if(returning!=null)foreach(var icon in icons.Where(i=>returning.Contains(i.Key)))
+            if(!plan.ContainsKey(icon.Key))plan[icon.Key]=icon.Position;
+        return plan;
+    }
     public static Rectangle Footprint(Point p, Size spacing) => new(p.X - 10, p.Y - 10, spacing.Width + 20, spacing.Height + 20);
     // Explorer spacing already includes its label area. Adjacent native cells may
     // share our extra basket-clearance gutter without overlapping each other.
@@ -336,34 +360,43 @@ public static class LayoutPlanner
         return result;
     }
     public static Dictionary<string, Point> Plan(IReadOnlyList<LayoutIcon> icons, IReadOnlyList<Rectangle> baskets,
-        IReadOnlyList<Rectangle> workAreas, Size spacing,HashSet<string>? forceMove=null)
+        IReadOnlyList<Rectangle> workAreas, Size spacing,HashSet<string>? forceMove=null,IReadOnlyList<LayoutIcon>? gridReference=null)
     {
         spacing = new Size(Math.Max(48, spacing.Width), Math.Max(64, spacing.Height));
-        var result = new Dictionary<string, Point>();
+        var result = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
         var occupied = new List<Rectangle>();
         var displaced = new List<LayoutIcon>();
         foreach (var icon in icons)
         {
             var box = Footprint(icon.Position, spacing);
             if (baskets.Any(b => b.IntersectsWith(box))||forceMove?.Contains(icon.Key)==true) displaced.Add(icon);
-            else occupied.Add(box);
+            else occupied.Add(Cell(icon.Position,spacing));
         }
-        // Candidate cells use a generous footprint, including labels and a safety gutter.
+        // Preserve every unaffected position. Only displaced/returning icons need
+        // a free native cell; basket clearance is separate from icon spacing.
         foreach (var icon in displaced)
         {
+            if(workAreas.Count==0)throw new InvalidOperationException("沒有可用的桌面工作區。");
+            var area=workAreas.FirstOrDefault(a=>a.Contains(icon.Position));
+            if(area.IsEmpty)area=workAreas.OrderBy(a=>Math.Pow((double)icon.Position.X-MathEx.Clamp(icon.Position.X,a.Left,a.Right-1),2)
+                +Math.Pow((double)icon.Position.Y-MathEx.Clamp(icon.Position.Y,a.Top,a.Bottom-1),2)).First();
+            bool Available(Point p)=>area.Contains(Cell(p,spacing))&&!baskets.Any(b=>b.IntersectsWith(Footprint(p,spacing)))
+                &&!occupied.Any(b=>b.IntersectsWith(Cell(p,spacing)));
+            // A clear drag-out point or original return position is intentional.
+            if(forceMove?.Contains(icon.Key)==true&&Available(icon.Position))
+            {result.Add(icon.Key,icon.Position);occupied.Add(Cell(icon.Position,spacing));continue;}
             var candidates = new List<Point>();
-            foreach (var area in workAreas)
-            for (int x = area.Left + 10; x + spacing.Width + 10 <= area.Right; x += spacing.Width + 20)
-            for (int y = area.Top + 10; y + spacing.Height + 10 <= area.Bottom; y += spacing.Height + 20)
+            var start=GridAnchor(gridReference??icons,area,spacing);
+            for (int x = start.X; x + spacing.Width <= area.Right; x += spacing.Width)
+            for (int y = start.Y; y + spacing.Height <= area.Bottom; y += spacing.Height)
             {
                 var p = new Point(x, y);
-                var box = Footprint(p, spacing);
-                if (!baskets.Any(b => b.IntersectsWith(box)) && !occupied.Any(b => b.IntersectsWith(box))) candidates.Add(p);
+                if(Available(p))candidates.Add(p);
             }
             if (candidates.Count == 0) throw new InvalidOperationException("桌面空間不足：請縮小整理籃、分類更多圖示，或減少整理籃。這次位置沒有套用。");
             var best = candidates.OrderBy(p => Math.Pow((double)p.X - icon.Position.X, 2) + Math.Pow((double)p.Y - icon.Position.Y, 2)).First();
             result.Add(icon.Key, best);
-            occupied.Add(Footprint(best, spacing));
+            occupied.Add(Cell(best, spacing));
         }
         return result;
     }

@@ -282,6 +282,7 @@ internal sealed class DesktopLayout : IDisposable
     {
         using var dpi=new Native.PhysicalDpiScope();
         var desktop=Shell;
+        preserveManagedPositions &= store.State.AutoCompactDesktop;
         var icons=desktop.ReadIcons();
         var oldBackups=store.State.Icons.Select(b=>new IconBackup{Key=b.Key,X=b.X,Y=b.Y,LastX=b.LastX,LastY=b.LastY,Hidden=b.Hidden}).ToList();
         var oldAuto=store.State.OriginalAutoArrange;
@@ -302,21 +303,15 @@ internal sealed class DesktopLayout : IDisposable
                     return new LayoutIcon(i.Key,new Point(target.X-desktop.Origin.X-spacing.Width/2,target.Y-desktop.Origin.Y-32));
                 return new LayoutIcon(i.Key,saved==null?i.Position:saved.Hidden?new Point(saved.X,saved.Y):preserveManagedPositions?new Point(saved.LastX,saved.LastY):i.Position);
             }).ToArray();
-            // Normal classification/refresh packs every usable native cell.
-            // An explicit drag back to the desktop keeps its requested drop
-            // position, rather than immediately pulling it away from the mouse.
-            var plan=desktopTargets==null
-                ?LayoutPlanner.Compact(visible,blocked,workAreas,spacing,GridReference(icons))
-                :LayoutPlanner.Plan(visible,blocked,workAreas,spacing,returning);
-            if(preserveManagedPositions)foreach(var icon in visible)
-                if(!plan.ContainsKey(icon.Key)&&icons.Any(i=>i.Key==icon.Key&&i.Position!=icon.Position))plan[icon.Key]=icon.Position;
             var vacancies=icons.Where(i=>assigned.Contains(i.Key)).Select(i=>
             {
                 var saved=store.State.Icons.FirstOrDefault(b=>string.Equals(b.Key,i.Key,StringComparison.OrdinalIgnoreCase)&&b.Hidden);
                 return saved==null?i.Position:new Point(saved.X,saved.Y);
             }).ToArray();
-            var current=visible.Select(i=>new LayoutIcon(i.Key,plan.TryGetValue(i.Key,out var p)?p:i.Position)).ToArray();
-            if(desktopTargets!=null)foreach(var move in LayoutPlanner.FillVacancies(current,vacancies,blocked,workAreas,spacing))plan[move.Key]=move.Value;
+            var plan=LayoutPlanner.PlanDesktop(visible,blocked,workAreas,spacing,store.State.AutoCompactDesktop,
+                desktopTargets!=null,returning,GridReference(icons),vacancies);
+            if(preserveManagedPositions)foreach(var icon in visible)
+                if(!plan.ContainsKey(icon.Key)&&icons.Any(i=>i.Key==icon.Key&&i.Position!=icon.Position))plan[icon.Key]=icon.Position;
             int hiddenX=screens.Max(s=>desktop.ToView(s.Bounds).Right)+512;
             int hiddenIndex=0;
             foreach(var icon in icons.Where(i=>assigned.Contains(i.Key)))

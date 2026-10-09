@@ -13,6 +13,10 @@ internal sealed class ManagerWindow : ModernWindow
     readonly CheckBox autoStart=new(){Text="登入 Windows 後自動啟動並開啟籃子",AutoSize=true,ForeColor=Theme.Text,Cursor=Cursors.Hand,AccessibleName="登入 Windows 後自動啟動並開啟籃子"};
     bool loadingStartup;
     internal CheckBox StartupControl=>autoStart;
+    readonly CheckBox autoCompact=new(){Text="自動補齊桌面空位（會重排）",ForeColor=Theme.Text,Cursor=Cursors.Hand,
+        AccessibleName="自動補齊桌面空位（會重排）",AccessibleDescription="預設關閉，保留桌面手動位置。開啟後會依序排列未分類圖示。"};
+    bool loadingArrangement;
+    internal CheckBox ArrangementControl=>autoCompact;
     bool loading;
     public Basket? Selected => baskets.SelectedItem as Basket;
     public bool Exiting { get; set; }
@@ -70,21 +74,25 @@ internal sealed class ManagerWindow : ModernWindow
         };
         baskets.SelectedIndexChanged+=(_,_)=>{if(!loading)RefreshEntries();};
         baskets.DoubleClick+=(_,_)=>{if(Selected is Basket b)app.EditBasket(b);};
-        var leftActions=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=216};
+        // Three button rows; leave room for both settings at minimum height.
+        var leftActions=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=144};
         leftActions.Controls.Add(Theme.Button("分類設定",(_,_)=>{if(Selected is Basket b)app.EditBasket(b);}));
         leftActions.Controls.Add(Theme.Button("共享與裝置",(_,_)=>app.ShowSharingSettings()));
         leftActions.Controls.Add(Theme.Button("移除分類",(_,_)=>{if(Selected is Basket b)app.DeleteBasket(b);}));
         leftActions.Controls.Add(Theme.Button("移至螢幕",(_,_)=>{if(Selected is Basket b)app.ShowScreenMenu(b);}));
         leftActions.Controls.Add(Theme.Button("開啟設定資料夾",(_,_)=>Theme.Try(()=>Theme.Open(app.Store.Root))));
         left.Controls.Add(baskets);left.Controls.Add(leftActions);
-        var startupPanel=new Panel{Dock=DockStyle.Bottom,Height=82,Padding=new Padding(0,8,0,0)};
+        var startupPanel=new Panel{Dock=DockStyle.Bottom,Height=94,Padding=new Padding(0,8,0,0)};
         autoStart.Location=new Point(0,8);autoStart.Font=Theme.Body(9);
         // Keep the setting readable at the manager's minimum width.
         autoStart.AutoSize=false;autoStart.Size=new Size(236,36);
         startupPanel.Controls.Add(autoStart);
-        startupPanel.Controls.Add(new Label{Text="恢復原有分類，管理介面留在系統匣",AutoSize=false,Location=new Point(0,48),Size=new Size(236,30),ForeColor=Theme.Muted,Font=Theme.Body(8.5f)});
+        autoStart.AccessibleDescription="恢復原有分類，管理介面留在系統匣";
+        autoCompact.Location=new Point(0,48);autoCompact.Size=new Size(236,36);autoCompact.Font=Theme.Body(9);
+        startupPanel.Controls.Add(autoCompact);
+        autoCompact.CheckedChanged+=(_,_)=>{if(!loadingArrangement)app.SetAutoCompactDesktop(autoCompact.Checked);};
         autoStart.CheckedChanged+=(_,_)=>{if(!loadingStartup)app.SetAutoStart(autoStart.Checked);};
-        left.Controls.Add(startupPanel);startupPanel.BringToFront();
+        left.Controls.Add(startupPanel);baskets.BringToFront();
         var right=new Panel{Dock=DockStyle.Fill,BackColor=Theme.Panel};
         entries.BackColor=Theme.Panel;entries.ForeColor=Theme.Text;entries.BorderStyle=BorderStyle.None;
         entries.Columns.Add("檔案／程式",220);entries.Columns.Add("方式",84);entries.Columns.Add("所在位置",330);
@@ -143,6 +151,7 @@ internal sealed class ManagerWindow : ModernWindow
         baskets.EndUpdate();loading=false;
         toggle.Text=app.Store.State.Enabled?"暫停並還原圖示":"啟用桌面";
         RefreshStartup();
+        RefreshArrangement();
         RefreshEntries();
         Invalidate(true);
     }
@@ -152,6 +161,12 @@ internal sealed class ManagerWindow : ModernWindow
         try{autoStart.Checked=app.Startup.Enabled;autoStart.Enabled=true;}
         catch(Exception ex){autoStart.Enabled=false;SetStatus("無法讀取登入啟動設定："+ex.Message,true);}
         finally{loadingStartup=false;}
+    }
+    internal void RefreshArrangement()
+    {
+        loadingArrangement=true;
+        try{autoCompact.Checked=app.Store.State.AutoCompactDesktop;}
+        finally{loadingArrangement=false;}
     }
     void RefreshEntries()
     {

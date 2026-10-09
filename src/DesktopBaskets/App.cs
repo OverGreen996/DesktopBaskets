@@ -73,6 +73,18 @@ internal sealed class App : ApplicationContext
         catch(Exception ex){Manager.SetStatus("無法更新登入啟動設定："+ex.Message,true);Theme.Error(ex);}
         finally{Manager.RefreshStartup();}
     }
+    internal void SetAutoCompactDesktop(bool enabled)
+    {
+        Wake();bool previous=Store.State.AutoCompactDesktop;
+        try
+        {
+            Store.State.AutoCompactDesktop=enabled;Store.Save();
+            if(enabled&&Store.State.Enabled)ApplyLayout();
+            Manager.SetStatus(enabled?"已開啟自動補齊 · 未分類圖示會依序排列並避開籃框。":"自由擺放 · 保留桌面手動位置，只移開擋到籃框的圖示。");
+        }
+        catch(Exception ex){Store.State.AutoCompactDesktop=previous;Store.Save();Manager.SetStatus("無法變更桌面排列："+ex.Message,true);Theme.Error(ex);}
+        finally{Manager.RefreshArrangement();}
+    }
     public void ShowManager(){Wake();Manager.Show();if(Manager.WindowState!=FormWindowState.Normal)Manager.CaptionCommand(0xF120);Manager.Activate();}
     public void Wake()
     {
@@ -430,15 +442,14 @@ internal sealed class App : ApplicationContext
                 var rects=Store.State.Baskets.Select(b=>layout.Shell.ToView(b.ScreenBounds)).ToArray();
                 var spacing=layout.Shell.Spacing;
                 var assigned=new HashSet<string>(Store.State.Baskets.SelectMany(b=>b.Entries).Select(e=>e.Path),StringComparer.OrdinalIgnoreCase);
-                blocked=(refresh&&Store.State.Icons.Any(b=>icons.Any(i=>i.Key==b.Key&&i.Position!=new Point(b.LastX,b.LastY))))||icons.Any(i=>assigned.Contains(i.Key)
-                    ?Native.PhysicalScreens().Any(s=>layout.Shell.ToView(s.Bounds).IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing)))
-                    :rects.Any(r=>r.IntersectsWith(LayoutPlanner.Footprint(i.Position,spacing))))
-                    ||Store.State.Icons.Any(b=>b.Hidden&&!assigned.Contains(b.Key))
-                    ||(refresh&&layout.NeedsCompaction(icons));
-                if(!blocked){layout.Shell.CleanAssignedSelection(icons,assigned);if(!refresh)layout.RememberUserPositions(icons);}
+                blocked=LayoutPlanner.RequiresAvoidance(icons.Select(i=>new LayoutIcon(i.Key,i.Position)).ToArray(),assigned,Store.State.Icons,
+                    rects,Native.PhysicalScreens().Select(s=>layout.Shell.ToView(s.Bounds)).ToArray(),spacing)
+                    ||(Store.State.AutoCompactDesktop&&refresh&&(Store.State.Icons.Any(b=>icons.Any(i=>i.Key==b.Key&&i.Position!=new Point(b.LastX,b.LastY)))||layout.NeedsCompaction(icons)));
+                if(!Store.State.AutoCompactDesktop||!refresh)layout.RememberUserPositions(icons);
+                if(!blocked)layout.Shell.CleanAssignedSelection(icons,assigned);
             }
             finally {foreach(var i in icons)i.Dispose();}
-            if(blocked)ApplyLayout(refresh);else if(!hideVerificationWindows)foreach(var w in windows.Values)w.Show();
+            if(blocked)ApplyLayout(refresh&&Store.State.AutoCompactDesktop);else if(!hideVerificationWindows)foreach(var w in windows.Values)w.Show();
         }
         catch(Exception ex){foreach(var w in windows.Values)w.Hide();Manager.SetStatus("桌面整理已暫停："+ex.Message,true);}
     }
